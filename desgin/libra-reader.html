@@ -1,0 +1,2063 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Libra Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================ tokens */
+:root{
+  --bg:oklch(0.979 0.003 85);
+  --surface:oklch(0.960 0.004 100);
+  --fg:oklch(0.205 0.013 76);
+  --muted:oklch(0.505 0.009 75);
+  --border:oklch(0.900 0.005 95);
+  --accent:oklch(0.514 0.083 29);
+  --accent-ink:oklch(0.985 0.003 85);
+  /* darkened accent for labels that sit on an accent tint */
+  --accent-text:oklch(0.455 0.088 29);
+  /* primary actions are ink, not accent — accent stays reserved for the mark and small indicators */
+  --primary:oklch(0.199 0.0155 76);
+  --primary-hover:oklch(0.290 0.016 76);
+  --primary-ink:oklch(0.979 0.003 85);
+  --err:oklch(0.505 0.175 16);
+  --warn:oklch(0.640 0.135 54);
+  --well:oklch(0.970 0.003 92);
+  --hl-yellow:oklch(0.925 0.080 96);
+  --hl-sage:oklch(0.908 0.044 152);
+  --hl-blue:oklch(0.908 0.040 238);
+  --hl-blush:oklch(0.908 0.042 10);
+  --shadow-pop:0 1px 2px color-mix(in oklab,var(--fg) 8%,transparent),0 12px 28px color-mix(in oklab,var(--fg) 10%,transparent);
+  --serif:"Newsreader","Iowan Old Style","Source Serif 4",Georgia,serif;
+  --sans:"Archivo",-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r-sm:6px; --r-md:10px;
+  --rail:252px; --panel:330px;
+}
+[data-theme="dark"]{
+  --bg:oklch(0.198 0.005 75);
+  --surface:oklch(0.246 0.005 75);
+  --fg:oklch(0.932 0.005 85);
+  --muted:oklch(0.745 0.007 80);
+  --border:oklch(0.345 0.005 75);
+  --accent:oklch(0.730 0.075 38);
+  --accent-ink:oklch(0.185 0.012 40);
+  --accent-text:oklch(0.775 0.072 38);
+  --primary:oklch(0.730 0.075 38);
+  --primary-hover:oklch(0.790 0.072 38);
+  --primary-ink:oklch(0.185 0.012 40);
+  --err:oklch(0.700 0.150 20);
+  --warn:oklch(0.780 0.120 60);
+  --well:oklch(0.225 0.005 75);
+  --hl-yellow:oklch(0.47 0.072 96);
+  --hl-sage:oklch(0.44 0.046 152);
+  --hl-blue:oklch(0.44 0.044 248);
+  --hl-blush:oklch(0.45 0.050 10);
+  --shadow-pop:0 1px 2px rgba(0,0,0,.4),0 14px 30px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font-family:var(--sans);font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+::selection{background:color-mix(in oklab,var(--accent) 26%,transparent)}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.caps{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.ico{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ico.sm{width:15px;height:15px}
+
+/* ============================================================ shell */
+.app{display:grid;grid-template-columns:var(--rail) minmax(0,1fr);height:100vh;overflow:hidden}
+.rail{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+.brand{display:flex;align-items:center;gap:10px;padding:22px 20px 16px}
+.brand .mark{width:26px;height:26px;color:var(--accent);flex:none}
+.brand .wm{font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:-.015em;line-height:1.2}
+.brand .wm span{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--muted);letter-spacing:0;margin-left:5px}
+.rail-scroll{flex:1;min-height:0;overflow:auto;padding:0 12px 12px}
+.add-btn{
+  display:flex;align-items:center;gap:9px;width:calc(100% - 24px);margin:0 12px 18px;
+  padding:12px 16px;border-radius:var(--r-sm);
+  background:var(--primary);color:var(--primary-ink);font-weight:600;letter-spacing:-.005em;
+  box-shadow:0 1px 0 color-mix(in oklab,var(--fg) 22%,transparent),inset 0 1px 0 color-mix(in oklab,white 18%,transparent);
+  transition:transform .12s ease,background .12s ease;
+}
+.add-btn:hover{background:var(--primary-hover)}
+.add-btn:active{transform:translateY(1px);box-shadow:none}
+.add-btn .k{margin-left:auto;font-family:var(--mono);font-size:11px;opacity:.9}
+.nav-group{margin-bottom:18px}
+.nav-group>.caps{padding:0 12px 8px}
+.nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;
+  border-radius:var(--r-sm);color:var(--fg);font-weight:500;text-align:left;transition:background .1s ease}
+.nav-item:hover{background:color-mix(in oklab,var(--fg) 6%,transparent)}
+.nav-item .n{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400}
+.nav-item[aria-current="page"]{background:color-mix(in oklab,var(--accent) 13%,transparent);color:var(--accent-text);font-weight:600}
+.nav-item[aria-current="page"] .n{color:var(--accent-text)}
+.sub .nav-item{font-size:13px;font-weight:400;padding:8px 12px 8px 38px;position:relative}
+.sub .nav-item::before{content:"";position:absolute;left:21px;top:50%;margin-top:-2px;width:4px;height:4px;border-radius:50%;background:var(--muted);opacity:.6}
+.sub .nav-item[aria-current="page"]::before{background:var(--accent);opacity:1}
+.swatch{width:9px;height:9px;border-radius:2px;flex:none;border:1px solid color-mix(in oklab,var(--fg) 24%,transparent)}
+.rail-foot{border-top:1px solid var(--border);padding:10px 12px 12px;display:grid;gap:2px}
+.who{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:var(--r-sm);width:100%;text-align:left}
+.who:hover{background:color-mix(in oklab,var(--fg) 6%,transparent)}
+.avatar{width:30px;height:30px;padding:6px;border-radius:50%;background:color-mix(in oklab,var(--accent) 20%,var(--surface));
+  display:grid;place-items:center;font-size:11px;font-weight:600;color:var(--accent-text);flex:none;line-height:1}
+.who .t{min-width:0}
+.who .t b{display:block;font-size:13px;font-weight:500}
+.who .t i{display:block;font-size:11.5px;font-style:normal;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ============================================================ main */
+.main{min-width:0;overflow:auto;position:relative;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){.main{scroll-behavior:auto}}
+.view{display:none}
+.view.on{display:block}
+.wrap{max-width:1080px;margin:0 auto;padding:44px 52px 96px}
+h2.page{font-family:var(--serif);font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:0}
+.count{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.lede{color:var(--muted);max-width:62ch;margin:8px 0 0}
+
+/* generic controls */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 15px;border:1px solid var(--border);
+  border-radius:var(--r-sm);background:var(--bg);font-size:13px;font-weight:500;line-height:1.2;
+  transition:background .1s,border-color .1s}
+.btn:hover{background:var(--well);border-color:color-mix(in oklab,var(--fg) 26%,transparent)}
+.btn.prime{background:var(--primary);color:var(--primary-ink);border-color:transparent;font-weight:600;
+  box-shadow:0 1px 0 color-mix(in oklab,var(--fg) 20%,transparent)}
+.btn.prime:hover{background:var(--primary-hover)}
+.btn.prime:active{transform:translateY(1px);box-shadow:none}
+.btn.ghost{border-color:transparent;background:none}
+.btn.ghost:hover{background:color-mix(in oklab,var(--fg) 7%,transparent)}
+.btn.sm{padding:9px 13px;font-size:12.5px}
+.btn[aria-pressed="true"]{background:color-mix(in oklab,var(--accent) 14%,transparent);border-color:color-mix(in oklab,var(--accent) 34%,transparent);color:var(--accent-text)}
+.iconbtn{display:grid;place-items:center;width:36px;height:36px;border-radius:var(--r-sm);color:var(--muted)}
+.iconbtn:hover{background:color-mix(in oklab,var(--fg) 8%,transparent);color:var(--fg)}
+.iconbtn[aria-pressed="true"]{color:var(--accent)}
+.iconbtn.on svg{fill:currentColor}
+.field{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--well);
+  border:1px solid var(--border);border-radius:var(--r-sm);color:var(--muted);line-height:1.2}
+.field:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
+.field input{flex:1;min-width:0;border:0;background:none;outline:none;color:var(--fg);padding:0}
+.field input::placeholder{color:var(--muted)}
+select.sel{padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);font-size:13px;line-height:1.2}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;background:var(--bg)}
+.seg button{width:38px;height:38px;display:grid;place-items:center;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--border)}
+.seg button[aria-pressed="true"]{background:var(--well);color:var(--fg)}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;line-height:1.2;
+  border:1px solid var(--border);background:var(--bg);font-size:12px;font-weight:500;color:var(--muted)}
+.chip.tag{border-style:dashed}
+.chip[aria-pressed="true"],.chip.on{background:color-mix(in oklab,var(--accent) 13%,transparent);
+  border-color:color-mix(in oklab,var(--accent) 34%,transparent);color:var(--accent-text);border-style:solid}
+
+/* bookplate thumbnails */
+.plate{position:relative;border:1px solid var(--border);border-radius:4px;overflow:hidden;flex:none;padding:14px;
+  background:var(--pbg,var(--surface));display:grid;place-items:center;text-align:center}
+.plate::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,color-mix(in oklab,var(--fg) 4%,transparent) 3px 4px)}
+.plate .frame{position:absolute;inset:5px;border:1px solid color-mix(in oklab,var(--fg) 18%,transparent);border-radius:2px}
+.plate b{font-family:var(--serif);font-weight:500;letter-spacing:.01em;line-height:1.1;color:color-mix(in oklab,var(--fg) 92%,transparent)}
+.plate i{position:absolute;bottom:11px;left:0;right:0;font-style:normal;font-size:8px;font-weight:600;
+  letter-spacing:.11em;text-transform:uppercase;color:color-mix(in oklab,var(--fg) 78%,transparent)}
+.plate[data-t="newsletter"]{--pbg:color-mix(in oklab,var(--hl-yellow) 55%,var(--surface))}
+.plate[data-t="pdf"]{--pbg:color-mix(in oklab,var(--hl-blush) 55%,var(--surface))}
+.plate[data-t="epub"]{--pbg:color-mix(in oklab,var(--hl-blue) 55%,var(--surface))}
+.plate[data-t="note"]{--pbg:color-mix(in oklab,var(--hl-sage) 55%,var(--surface))}
+
+/* ============================================================ library rows */
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:24px 0 16px}
+.filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--border)}
+.filters .divider{width:1px;height:18px;background:var(--border);margin:0 4px}
+.rows{display:flex;flex-direction:column}
+.rowtitle{display:block;width:100%;text-align:left;padding:0;color:inherit;font:inherit}
+.rowtitle::after{content:"";position:absolute;inset:0;border-radius:var(--r-sm)}
+.row .pick,.row .acts{position:relative;z-index:2}
+.card .acts{position:absolute;top:10px;right:10px;z-index:2;display:flex;gap:4px;opacity:0;transition:opacity .1s}
+.card:hover .acts,.card:focus-within .acts{opacity:1}
+.card .acts .iconbtn{background:color-mix(in oklab,var(--bg) 82%,transparent);backdrop-filter:blur(6px)}
+.cardtitle{display:block;width:100%;text-align:left;padding:0;color:inherit;font:inherit}
+.cardtitle::after{content:"";position:absolute;inset:0;border-radius:var(--r-sm)}
+.row{position:relative;display:grid;grid-template-columns:22px 60px minmax(0,1fr) auto;gap:16px;align-items:start;
+  padding:18px 14px;border-bottom:1px solid var(--border);margin:0 -14px;border-radius:var(--r-sm);
+  text-align:left;width:calc(100% + 28px);transition:background .1s}
+.row:hover{background:color-mix(in oklab,var(--fg) 4%,transparent)}
+.row[data-sel="1"]{background:color-mix(in oklab,var(--accent) 9%,transparent)}
+.row .pick{width:18px;height:18px;border:1.5px solid color-mix(in oklab,var(--fg) 38%,transparent);border-radius:4px;
+  margin-top:4px;display:grid;place-items:center;opacity:0;transition:opacity .1s}
+.row:hover .pick,.row[data-sel="1"] .pick,.row:focus-within .pick{opacity:1}
+.row[data-sel="1"] .pick{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);opacity:1}
+.row .plate{width:60px;height:60px;padding:10px}
+.row .plate b{font-size:18px}
+.row .plate i{display:none}
+.row h3{margin:0;font-family:var(--serif);font-size:19px;font-weight:500;letter-spacing:-.01em;line-height:1.3}
+.row .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px;font-size:12.5px;color:var(--muted)}
+.row .meta .dot{opacity:.75}
+.row .tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+.row .acts{display:flex;align-items:center;gap:2px;opacity:0;transition:opacity .1s}
+.row:hover .acts,.row:focus-within .acts,.row .acts:has(.on){opacity:1}
+.prog{display:flex;align-items:center;gap:9px;margin-top:11px;max-width:300px}
+.prog .track{flex:1;height:3px;border-radius:2px;background:color-mix(in oklab,var(--fg) 14%,transparent);overflow:hidden}
+.prog .fill{height:100%;background:var(--accent);border-radius:2px}
+.prog span{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:30px 24px;margin-top:8px}
+.card{text-align:left;display:flex;flex-direction:column;gap:13px;position:relative}
+.card .plate{width:100%;aspect-ratio:4/3;border-radius:var(--r-sm)}
+.card .plate b{font-size:30px}
+.card:hover .plate{border-color:color-mix(in oklab,var(--fg) 30%,transparent)}
+.card h3{margin:0;font-family:var(--serif);font-size:17px;font-weight:500;line-height:1.3;letter-spacing:-.01em}
+.card .meta{font-size:12.5px;color:var(--muted);margin-top:6px}
+
+.bulkbar{position:sticky;bottom:20px;z-index:25;margin:20px auto 0;max-width:720px;display:flex;align-items:center;gap:9px;
+  padding:13px 14px 13px 20px;border-radius:var(--r-md);border:1px solid var(--border);
+  background:var(--surface);box-shadow:var(--shadow-pop)}
+.bulkbar b{font-size:13px;font-weight:600}
+.bulkbar .sp{flex:1}
+
+/* ============================================================ home */
+.greet{font-family:var(--serif);font-size:38px;font-weight:500;letter-spacing:-.022em;margin:0;line-height:1.15}
+.sec{margin-top:48px}
+.sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
+.sec-head h2{margin:0;font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.sec-head a{margin-left:auto;font-size:13px;color:var(--muted);text-decoration:none;border-bottom:1px solid var(--border);padding-bottom:4px}
+.sec-head a:hover{color:var(--fg);border-color:currentColor}
+.continue{display:grid;grid-template-columns:124px minmax(0,1fr);gap:28px;align-items:center;text-align:left;
+  padding:26px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--well);width:100%;
+  transition:border-color .12s}
+.continue:hover{border-color:color-mix(in oklab,var(--accent) 55%,transparent)}
+.continue .plate{width:124px;height:154px}
+.continue .plate b{font-size:34px}
+.continue h3{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:-.02em;margin:11px 0 0;line-height:1.2}
+.continue p{color:var(--muted);margin:11px 0 0;font-size:13.5px}
+.recent{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.hl-card{text-align:left;border:1px solid var(--border);border-radius:var(--r-md);padding:24px 26px;background:var(--bg);
+  display:block;width:100%;transition:border-color .12s,background .12s}
+.hl-card:hover{border-color:color-mix(in oklab,var(--fg) 30%,transparent)}
+.hl-quote{font-family:var(--serif);font-size:19px;line-height:1.6;margin:0;letter-spacing:-.005em}
+.hl-quote em{font-style:normal;padding:2px 4px;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.hl-src{display:flex;align-items:center;gap:9px;margin-top:18px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.hl-note{margin:16px 0 0;padding-left:16px;border-left:2px solid color-mix(in oklab,var(--accent) 60%,transparent);
+  font-size:13.5px;color:var(--muted);font-style:italic}
+.collstrip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.coll-tile{text-align:left;border:1px solid var(--border);border-radius:var(--r-md);padding:18px 20px;background:var(--bg);
+  transition:border-color .12s,background .12s}
+.coll-tile:hover{border-color:color-mix(in oklab,var(--fg) 30%,transparent);background:var(--well)}
+.coll-tile .bar{width:26px;height:3px;border-radius:2px;margin-bottom:13px}
+.coll-tile b{display:block;font-family:var(--serif);font-size:17px;font-weight:500;letter-spacing:-.01em;line-height:1.3}
+.coll-tile span{font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+
+/* ============================================================ reader */
+.reader-shell{display:grid;grid-template-columns:216px minmax(0,1fr) var(--panel);min-height:100%}
+.reader-shell[data-panel="0"]{grid-template-columns:216px minmax(0,1fr) 0}
+.reader-shell[data-panel="0"] .annot{display:none}
+.toc{padding:38px 24px 60px;position:sticky;top:56px;align-self:start;max-height:calc(100vh - 56px);overflow:auto}
+.toc .caps{margin-bottom:14px;display:block}
+.toc a{display:block;text-decoration:none;font-size:13px;color:var(--muted);padding:10px 0 10px 16px;
+  border-left:2px solid var(--border);line-height:1.4}
+.toc a:hover{color:var(--fg)}
+.toc a[aria-current="true"]{color:var(--accent);border-color:var(--accent);font-weight:500}
+.readcol{padding:38px 44px 140px;min-width:0;justify-self:center;width:100%;
+  max-width:calc(var(--measure,66) * 1ch + 88px)}
+.article{font-family:var(--read-font,var(--serif));font-size:var(--read-size,19px);line-height:var(--read-lead,1.72)}
+.article[data-font="sans"]{--read-font:var(--sans)}
+.art-head{border-bottom:1px solid var(--border);padding-bottom:30px;margin-bottom:36px}
+.art-head h1{font-family:var(--serif);font-size:clamp(30px,3.4vw,42px);font-weight:600;letter-spacing:-.025em;
+  line-height:1.14;margin:14px 0 0;overflow-wrap:break-word}
+.art-head .by{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px;font-size:13px;color:var(--muted);font-family:var(--sans)}
+.art-head .by a{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in oklab,var(--accent) 40%,transparent);padding-bottom:3px}
+.article h2{font-family:var(--serif);font-size:1.33em;font-weight:600;letter-spacing:-.015em;line-height:1.25;
+  margin:2.1em 0 .55em;scroll-margin-top:80px}
+.article p{margin:0 0 1.15em}
+.article p.drop::first-letter{font-size:3.1em;float:left;line-height:.82;padding:.06em .09em 0 0;font-weight:500}
+.article blockquote{margin:1.7em 0;padding-left:26px;border-left:2px solid var(--accent);font-style:italic;color:var(--muted)}
+.article .pull{font-size:1.05em}
+mark.hl{background:var(--hl-yellow);color:var(--fg);padding:2px 4px;border-radius:2px;cursor:pointer;
+  box-decoration-break:clone;-webkit-box-decoration-break:clone;border-bottom:1.5px solid transparent}
+mark.hl[data-c="sage"]{background:var(--hl-sage)}
+mark.hl[data-c="blue"]{background:var(--hl-blue)}
+mark.hl[data-c="blush"]{background:var(--hl-blush)}
+mark.hl[data-note="1"]{border-bottom-color:color-mix(in oklab,var(--fg) 55%,transparent)}
+mark.hl:hover{filter:brightness(.96)}
+mark.hl.flash{animation:flash 1.5s ease}
+@keyframes flash{0%,55%{box-shadow:0 0 0 4px color-mix(in oklab,var(--accent) 42%,transparent)}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){mark.hl.flash{animation:none;outline:2px solid var(--accent)}}
+.readbar{position:sticky;top:0;z-index:22;display:flex;align-items:center;gap:6px;padding:9px 20px;min-height:56px;
+  background:color-mix(in oklab,var(--bg) 90%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.readbar .sp{flex:1}
+.readbar .crumb{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px}
+.progline{position:absolute;left:0;bottom:-1px;height:2px;background:var(--accent);transition:width .12s linear}
+.endcap{margin-top:58px;padding-top:32px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  font-family:var(--sans);font-size:13.5px;color:var(--muted)}
+.annot{border-left:1px solid var(--border);background:var(--surface);padding:30px 26px 60px;
+  position:sticky;top:56px;align-self:start;max-height:calc(100vh - 56px);overflow:auto}
+.annot-item{border-left:3px solid var(--hl-yellow);padding:10px 0 10px 16px;margin-bottom:20px;text-align:left;width:100%;display:block}
+.annot-item[data-c="sage"]{border-color:var(--hl-sage)}
+.annot-item[data-c="blue"]{border-color:var(--hl-blue)}
+.annot-item[data-c="blush"]{border-color:var(--hl-blush)}
+.annot-item q{font-family:var(--serif);font-size:15px;line-height:1.55;quotes:none;display:block}
+.annot-item .n{font-size:13px;color:var(--muted);margin-top:9px;font-style:italic}
+.annot-item:hover q{color:var(--accent)}
+
+/* ============================================================ panels, popovers, modals */
+.pop{position:absolute;z-index:60;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);
+  box-shadow:var(--shadow-pop);padding:20px;min-width:264px}
+.pop[hidden]{display:none}
+.pop h4{margin:0 0 14px;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.ctl{display:grid;gap:9px;margin-bottom:18px}
+.ctl label{font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between}
+.ctl label b{color:var(--fg);font-family:var(--mono);font-size:11.5px;font-weight:500}
+input[type=range]{width:100%;accent-color:var(--accent);height:20px}
+.seltool{position:absolute;z-index:70;display:flex;align-items:center;gap:2px;padding:6px;border-radius:10px;
+  background:var(--fg);box-shadow:var(--shadow-pop)}
+.seltool[hidden]{display:none}
+.seltool button{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:6px;line-height:1.2;
+  color:var(--bg);font-size:12.5px;font-weight:500}
+.seltool button:hover{background:color-mix(in oklab,var(--bg) 22%,transparent)}
+.seltool .sepv{width:1px;height:20px;background:color-mix(in oklab,var(--bg) 32%,transparent);margin:0 5px}
+.seltool .dots{display:flex;gap:6px;padding:0 7px}
+.seltool .dots button{width:20px;height:20px;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.5)}
+.scrim{position:fixed;inset:0;z-index:80;background:color-mix(in oklab,oklch(0.20 0.012 76) 46%,transparent);
+  display:grid;place-items:center;padding:28px;backdrop-filter:blur(2px)}
+.scrim[hidden]{display:none}
+.modal{background:var(--bg);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-pop);
+  width:min(560px,100%);max-height:88vh;overflow:auto}
+.modal.wide{width:min(720px,100%)}
+.modal-head{display:flex;align-items:center;gap:12px;padding:22px 26px;border-bottom:1px solid var(--border)}
+.modal-head h3{margin:0;font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.015em;line-height:1.3}
+.modal-body{padding:26px}
+.modal-foot{display:flex;align-items:center;gap:10px;padding:20px 26px;border-top:1px solid var(--border);background:var(--well)}
+.modal-foot .sp{flex:1}
+.tabs{display:flex;gap:4px;padding:6px;background:var(--well);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:26px}
+.tabs button{flex:1;padding:10px;border-radius:5px;font-size:13px;font-weight:500;color:var(--muted);line-height:1.2}
+.tabs button[aria-selected="true"]{background:var(--bg);color:var(--fg);box-shadow:0 1px 2px color-mix(in oklab,var(--fg) 10%,transparent)}
+.lbl{display:block;font-size:12.5px;font-weight:500;color:var(--muted);margin-bottom:8px}
+.inp{width:100%;padding:13px 15px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--well);outline:none;line-height:1.3}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
+textarea.inp{min-height:102px;resize:vertical;line-height:1.5}
+.hintrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.preview{display:grid;grid-template-columns:90px minmax(0,1fr);gap:18px;padding:20px;border:1px solid var(--border);
+  border-radius:var(--r-md);background:var(--well);margin-top:22px}
+.preview .plate{width:90px;height:90px}
+.preview .plate b{font-size:24px}
+.preview h4{margin:0;font-family:var(--serif);font-size:18px;font-weight:500;line-height:1.35}
+.skel{height:12px;border-radius:3px;background:color-mix(in oklab,var(--fg) 12%,transparent);
+  animation:pulse 1.3s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none;opacity:.7}}
+.state{display:flex;gap:14px;padding:20px;border-radius:var(--r-md);margin-top:22px;border:1px solid var(--border);background:var(--well)}
+.state.err{border-color:color-mix(in oklab,var(--err) 52%,var(--border));background:color-mix(in oklab,var(--err) 8%,var(--well))}
+.state.warn{border-color:color-mix(in oklab,var(--warn) 56%,var(--border));background:color-mix(in oklab,var(--warn) 10%,var(--well))}
+.state b{display:block;font-size:13.5px;margin-bottom:5px}
+.state p{margin:0;font-size:13px;color:var(--muted)}
+.state .ic{flex:none;margin-top:1px;color:var(--muted)}
+
+.toasts{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:95;display:grid;gap:10px;justify-items:center}
+.toast{display:flex;align-items:center;gap:12px;padding:14px 16px 14px 22px;border-radius:999px;background:var(--fg);
+  color:var(--bg);box-shadow:var(--shadow-pop);font-size:13.5px;line-height:1.3;animation:rise .2s ease}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}}
+.toast button{color:var(--bg);font-weight:600;text-decoration:underline;text-underline-offset:3px;padding:4px 8px}
+
+.empty{text-align:center;padding:80px 32px;border:1px dashed var(--border);border-radius:var(--r-md);margin-top:28px}
+.empty .mark{width:34px;height:34px;color:var(--muted);margin-bottom:16px}
+.empty h3{font-family:var(--serif);font-size:21px;font-weight:500;margin:0 0 9px;letter-spacing:-.01em;line-height:1.3}
+.empty p{margin:0 auto 22px;color:var(--muted);max-width:42ch;font-size:13.5px}
+
+/* highlights + collections + search + settings */
+.hl-list{display:grid;gap:18px;margin-top:24px}
+.hl-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-bottom:18px;border-bottom:1px solid var(--border)}
+.coll-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px;margin-top:26px}
+.coll-card{text-align:left;border:1px solid var(--border);border-radius:var(--r-md);padding:24px;background:var(--bg);
+  transition:border-color .12s,background .12s;display:block}
+.coll-card:hover{border-color:color-mix(in oklab,var(--fg) 30%,transparent);background:var(--well)}
+.coll-card .bar{width:30px;height:3px;border-radius:2px;margin-bottom:15px}
+.coll-card h3{margin:0;font-family:var(--serif);font-size:19px;font-weight:500;letter-spacing:-.012em;line-height:1.3}
+.coll-card p{margin:8px 0 0;font-size:13px;color:var(--muted);line-height:1.5}
+.coll-card .n{margin-top:15px;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.resgroup{margin-top:36px}
+.resgroup>h3{display:block;padding-bottom:12px;border-bottom:1px solid var(--border);margin:0 0 4px}
+.res{display:block;width:100%;text-align:left;padding:18px 14px;margin:0 -14px;border-radius:var(--r-sm);
+  border-bottom:1px solid var(--border)}
+.res:hover{background:color-mix(in oklab,var(--fg) 4%,transparent)}
+.res h4{margin:0;font-family:var(--serif);font-size:17px;font-weight:500;letter-spacing:-.01em;line-height:1.35}
+.res p{margin:7px 0 0;font-size:13px;color:var(--muted);line-height:1.6}
+.res p b{color:var(--fg);font-weight:500;background:color-mix(in oklab,var(--hl-yellow) 65%,transparent);padding:2px 4px;border-radius:2px}
+.res .where{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12px;color:var(--muted)}
+.setrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:26px;align-items:center;padding:20px 0;border-bottom:1px solid var(--border)}
+.setrow b{display:block;font-size:14px;font-weight:500}
+.setrow p{margin:5px 0 0;font-size:13px;color:var(--muted);max-width:52ch;line-height:1.55}
+.setgroup{margin-top:42px}
+.setgroup>h3{font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.015em;margin:0 0 4px;line-height:1.3}
+.kbd{font-family:var(--mono);font-size:11.5px;padding:7px 11px;border:1px solid var(--border);border-bottom-width:2px;
+  border-radius:4px;background:var(--well);color:var(--muted);line-height:1.2}
+.themecards{display:flex;gap:12px}
+.themecard{border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;width:106px;text-align:center}
+.themecard[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in oklab,var(--accent) 24%,transparent)}
+.themecard .sw{height:40px;border-radius:4px;border:1px solid var(--border);margin-bottom:10px}
+.themecard span{font-size:12px}
+.review-q{font-family:var(--serif);font-size:25px;line-height:1.55;letter-spacing:-.01em;margin:0}
+@media (max-width:1180px){
+  .reader-shell{grid-template-columns:minmax(0,1fr) var(--panel)}
+  .toc{display:none}
+  .recent{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .collstrip{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:900px){
+  .wrap{padding-left:26px;padding-right:26px}
+  .reader-shell,.reader-shell[data-panel="0"]{grid-template-columns:minmax(0,1fr)}
+  .annot{display:none}
+}
+</style>
+</head>
+<body>
+
+<svg class="sr" aria-hidden="true"><defs>
+<symbol id="i-logo" viewBox="0 0 24 24"><path d="M12 7.2v12.1M8.3 20.8h7.4M12 7.2C10 5.6 6.6 5 3.4 5.5v9.4c3.2-.5 6.6.1 8.6 1.7M12 7.2c2-1.6 5.4-2.2 8.6-1.7v9.4c-3.2-.5-6.6.1-8.6 1.7M12 3.4v1.6"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.2 12 3.6l8.5 6.6V20a.8.8 0 0 1-.8.8h-4.4v-6.2H8.7v6.2H4.3a.8.8 0 0 1-.8-.8z"/></symbol>
+<symbol id="i-lib" viewBox="0 0 24 24"><path d="M4 4.5h4v15H4zM10 4.5h4v15h-4zM16.2 5.4l3.6.9-3.3 13.3-3.6-.9z"/></symbol>
+<symbol id="i-hl" viewBox="0 0 24 24"><path d="m13.4 4.6 6 6-7.6 7.6H5.8v-6z"/><path d="M4 21.2h16"/></symbol>
+<symbol id="i-coll" viewBox="0 0 24 24"><path d="M3.4 7.2A1.6 1.6 0 0 1 5 5.6h3.6l1.9 2.4H19a1.6 1.6 0 0 1 1.6 1.6v8.2A1.6 1.6 0 0 1 19 19.4H5a1.6 1.6 0 0 1-1.6-1.6z"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m15.6 15.6 4.2 4.2"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-set" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.6 14.4a1.5 1.5 0 0 0 .3 1.6l.1.1a1.8 1.8 0 1 1-2.6 2.6l-.1-.1a1.5 1.5 0 0 0-2.6 1v.2a1.8 1.8 0 1 1-3.6 0v-.1a1.5 1.5 0 0 0-2.7-1l-.1.1a1.8 1.8 0 1 1-2.6-2.6l.1-.1a1.5 1.5 0 0 0-1-2.6h-.2a1.8 1.8 0 1 1 0-3.6h.1a1.5 1.5 0 0 0 1-2.7l-.1-.1a1.8 1.8 0 1 1 2.6-2.6l.1.1a1.5 1.5 0 0 0 1.6.3h.1a1.5 1.5 0 0 0 .9-1.4v-.2a1.8 1.8 0 1 1 3.6 0v.1a1.5 1.5 0 0 0 2.6 1l.1-.1a1.8 1.8 0 1 1 2.6 2.6l-.1.1a1.5 1.5 0 0 0-.3 1.6v.1a1.5 1.5 0 0 0 1.4.9h.2a1.8 1.8 0 1 1 0 3.6h-.1a1.5 1.5 0 0 0-1.4.9z"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 4 2.5 5.1 5.6.8-4 4 .9 5.6-5-2.7-5 2.7 1-5.6-4.1-4 5.6-.8z"/></symbol>
+<symbol id="i-arch" viewBox="0 0 24 24"><path d="M3.6 4.6h16.8v3.8H3.6zM5.2 8.4v10.2a.8.8 0 0 0 .8.8h12a.8.8 0 0 0 .8-.8V8.4M9.8 12.4h4.4"/></symbol>
+<symbol id="i-tag" viewBox="0 0 24 24"><path d="M3.8 11V4.6a.8.8 0 0 1 .8-.8H11l9 9-7.2 7.2z"/><circle cx="7.9" cy="7.9" r="1.1"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5.6" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="12" cy="18.4" r="1.3"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><path d="M4.4 4.4h6v6h-6zM13.6 4.4h6v6h-6zM4.4 13.6h6v6h-6zM13.6 13.6h6v6h-6z"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6.4h16M4 12h16M4 17.6h16"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="m5.6 5.6 12.8 12.8M18.4 5.6 5.6 18.4"/></symbol>
+<symbol id="i-note" viewBox="0 0 24 24"><path d="M19.4 13.4V5.2a1.4 1.4 0 0 0-1.4-1.4H6a1.4 1.4 0 0 0-1.4 1.4v13.6A1.4 1.4 0 0 0 6 20.2h7"/><path d="M13 20.2v-5.4a1.4 1.4 0 0 1 1.4-1.4h5zM8 8.4h8M8 12h5"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.6" y="8.6" width="11" height="11" rx="1.5"/><path d="M15.4 5.6V5a1.4 1.4 0 0 0-1.4-1.4H5.8A1.4 1.4 0 0 0 4.4 5v8.2a1.4 1.4 0 0 0 1.4 1.4h.6"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13.9a3.6 3.6 0 0 0 5.4.4l2.6-2.6a3.6 3.6 0 1 0-5.1-5.1l-1.5 1.5"/><path d="M14 10.1a3.6 3.6 0 0 0-5.4-.4L6 12.3a3.6 3.6 0 1 0 5.1 5.1l1.5-1.5"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M4.6 15.4v3.4a1.4 1.4 0 0 0 1.4 1.4h12a1.4 1.4 0 0 0 1.4-1.4v-3.4M12 15.6V3.8M7.8 8 12 3.8 16.2 8"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M13.6 3.8H6.6a1.4 1.4 0 0 0-1.4 1.4v13.6a1.4 1.4 0 0 0 1.4 1.4h10.8a1.4 1.4 0 0 0 1.4-1.4V9.2z"/><path d="M13.6 3.8v5.4h5.2M8.4 13h7M8.4 16.4h4.6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.6 4.6 4.6L19 6.8"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M4.4 8.6h9.2a5.4 5.4 0 1 1 0 10.8H7"/><path d="M8 4.8 4.2 8.6 8 12.4"/></symbol>
+<symbol id="i-panel" viewBox="0 0 24 24"><rect x="3.8" y="4.6" width="16.4" height="14.8" rx="1.6"/><path d="M14.6 4.6v14.8"/></symbol>
+<symbol id="i-type" viewBox="0 0 24 24"><path d="M3.4 18.8 8.6 5.6l5.2 13.2M5.1 14.6h7M15.6 18.8l3.2-8.2 3.2 8.2M16.6 16.2h4.4"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.6v2.2M12 19.2v2.2M4.6 4.6 6.2 6.2M17.8 17.8l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.6 19.4 6.2 17.8M17.8 6.2l1.6-1.6"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.4 13.6A8.4 8.4 0 0 1 10.4 3.6a8.4 8.4 0 1 0 10 10z"/></symbol>
+<symbol id="i-chevl" viewBox="0 0 24 24"><path d="m14.6 5.6-6.4 6.4 6.4 6.4"/></symbol>
+<symbol id="i-chevr" viewBox="0 0 24 24"><path d="m9.4 5.6 6.4 6.4-6.4 6.4"/></symbol>
+<symbol id="i-ext" viewBox="0 0 24 24"><path d="M14.6 4.4h5v5M19.6 4.4 11 13M17.4 13.6v5.2a1.2 1.2 0 0 1-1.2 1.2H5.4a1.2 1.2 0 0 1-1.2-1.2V8a1.2 1.2 0 0 1 1.2-1.2h5.2"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.6 6.6h14.8M9 6.6V4.8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1.8M6.4 6.6l.9 12.6a1 1 0 0 0 1 .9h7.4a1 1 0 0 0 1-.9l.9-12.6"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M16.4 3.9a2.1 2.1 0 0 1 3 3L8.6 17.7l-4 1 1-4z"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.8v4.8M12 16.1v.1"/></symbol>
+<symbol id="i-review" viewBox="0 0 24 24"><rect x="3.6" y="5.2" width="16.8" height="13.6" rx="1.6"/><path d="M7.6 9.8h8.8M7.6 13.4h5.4"/></symbol>
+<symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 3.8v11.4M7.8 11l4.2 4.2L16.2 11M4.6 19.4h14.8"/></symbol>
+</defs></svg>
+
+<div class="app">
+  <!-- ============================================ sidebar -->
+  <aside class="rail" data-od-id="sidebar">
+    <div class="brand" data-od-id="brand-wordmark">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true" style="stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"><use href="#i-logo"/></svg>
+      <div class="wm">Libra<span>Reader</span></div>
+    </div>
+    <button class="add-btn" data-od-id="add-content-cta" data-act="open-add">
+      <svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Add content<span class="k">A</span>
+    </button>
+    <div class="rail-scroll">
+      <nav class="nav-group" aria-label="Primary">
+        <button class="nav-item" data-nav="home"><svg class="ico" aria-hidden="true"><use href="#i-home"/></svg>Home</button>
+        <button class="nav-item" data-nav="library"><svg class="ico" aria-hidden="true"><use href="#i-lib"/></svg>Library<span class="n" data-n="all">—</span></button>
+        <div class="sub" data-od-id="library-views">
+          <button class="nav-item" data-nav="library" data-status="inbox">Inbox<span class="n" data-n="inbox">—</span></button>
+          <button class="nav-item" data-nav="library" data-status="reading">Reading<span class="n" data-n="reading">—</span></button>
+          <button class="nav-item" data-nav="library" data-status="archived">Archived<span class="n" data-n="archived">—</span></button>
+          <button class="nav-item" data-nav="library" data-status="fav">Favorites<span class="n" data-n="fav">—</span></button>
+        </div>
+        <button class="nav-item" data-nav="highlights"><svg class="ico" aria-hidden="true"><use href="#i-hl"/></svg>Highlights<span class="n" data-n="hl">—</span></button>
+        <button class="nav-item" data-nav="collections"><svg class="ico" aria-hidden="true"><use href="#i-coll"/></svg>Collections</button>
+        <button class="nav-item" data-nav="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>Search<span class="n">/</span></button>
+      </nav>
+      <div class="nav-group" data-od-id="sidebar-collections">
+        <div class="caps">Collections</div>
+        <div id="railColls"></div>
+      </div>
+      <div class="nav-group" data-od-id="sidebar-tags">
+        <div class="caps">Tags</div>
+        <div id="railTags"></div>
+      </div>
+    </div>
+    <div class="rail-foot">
+      <button class="nav-item" data-nav="settings"><svg class="ico" aria-hidden="true"><use href="#i-set"/></svg>Settings</button>
+      <button class="who" data-nav="settings" data-od-id="profile-button">
+        <span class="avatar" aria-hidden="true">NA</span>
+        <span class="t"><b>Nadia Albrecht</b><i>Free plan · 12 documents</i></span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============================================ main -->
+  <main class="main" id="main" tabindex="-1">
+
+    <!-- HOME -->
+    <section class="view" data-view="home" data-od-id="view-home">
+      <div class="wrap">
+        <header data-od-id="home-greeting">
+          <p class="caps" id="homeDate">—</p>
+          <h1 class="greet" id="homeGreet">Good evening, Nadia.</h1>
+          <p class="lede" id="homeLede">Four things are part-read. Nothing here is overdue — a library doesn't have deadlines.</p>
+        </header>
+
+        <section class="sec" data-od-id="home-continue">
+          <div class="sec-head"><h2>Continue reading</h2><a href="#" data-nav="library" data-status="reading">All in progress</a></div>
+          <div id="homeContinue"></div>
+        </section>
+
+        <section class="sec" data-od-id="home-recent">
+          <div class="sec-head"><h2>Recently saved</h2><a href="#" data-nav="library">Open library</a></div>
+          <div class="recent" id="homeRecent"></div>
+        </section>
+
+        <section class="sec" data-od-id="home-revisit">
+          <div class="sec-head"><h2>Revisit a highlight</h2><a href="#" data-nav="highlights">All highlights</a></div>
+          <div id="homeHl"></div>
+        </section>
+
+        <section class="sec" data-od-id="home-collections">
+          <div class="sec-head"><h2>Favorite collections</h2><a href="#" data-nav="collections">Manage</a></div>
+          <div class="collstrip" id="homeColls"></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- LIBRARY -->
+    <section class="view" data-view="library" data-od-id="view-library">
+      <div class="wrap">
+        <header style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+          <h2 class="page" id="libTitle">Library</h2>
+          <span class="count" id="libCount">—</span>
+        </header>
+        <div class="toolbar">
+          <label class="field" style="flex:1;min-width:230px" data-od-id="library-search">
+            <svg class="ico sm" aria-hidden="true"><use href="#i-search"/></svg>
+            <span class="sr">Search within library</span>
+            <input id="libQ" type="search" placeholder="Search titles, authors, tags…">
+          </label>
+          <select class="sel" id="libSort" aria-label="Sort by">
+            <option value="saved">Date saved</option>
+            <option value="title">Title</option>
+            <option value="progress">Reading progress</option>
+          </select>
+          <div class="seg" role="group" aria-label="Layout">
+            <button id="viewList" aria-pressed="true" aria-label="List view"><svg class="ico sm" aria-hidden="true"><use href="#i-list"/></svg></button>
+            <button id="viewGrid" aria-pressed="false" aria-label="Grid view"><svg class="ico sm" aria-hidden="true"><use href="#i-grid"/></svg></button>
+          </div>
+        </div>
+        <div class="filters" id="libFilters" data-od-id="library-filters"></div>
+        <div id="libBody"></div>
+        <div id="bulk"></div>
+      </div>
+    </section>
+
+    <!-- READER -->
+    <section class="view" data-view="reader" data-od-id="view-reader">
+      <div class="readbar" data-od-id="reader-toolbar">
+        <button class="iconbtn" data-act="reader-back" aria-label="Back to library"><svg class="ico" aria-hidden="true"><use href="#i-chevl"/></svg></button>
+        <span class="crumb" id="readCrumb">Library</span>
+        <span class="sp"></span>
+        <button class="iconbtn" id="btnFav" aria-pressed="false" aria-label="Favorite"><svg class="ico" aria-hidden="true"><use href="#i-star"/></svg></button>
+        <button class="iconbtn" data-act="reader-tag" aria-label="Add tag"><svg class="ico" aria-hidden="true"><use href="#i-tag"/></svg></button>
+        <button class="iconbtn" data-act="reader-collect" aria-label="Move to collection"><svg class="ico" aria-hidden="true"><use href="#i-coll"/></svg></button>
+        <button class="iconbtn" data-act="reader-archive" aria-label="Archive"><svg class="ico" aria-hidden="true"><use href="#i-arch"/></svg></button>
+        <span style="width:1px;height:20px;background:var(--border);margin:0 4px"></span>
+        <button class="btn sm" id="btnDisplay" aria-expanded="false">
+          <svg class="ico sm" aria-hidden="true"><use href="#i-type"/></svg>Display</button>
+        <button class="iconbtn" id="btnPanel" aria-pressed="true" aria-label="Toggle annotations panel"><svg class="ico" aria-hidden="true"><use href="#i-panel"/></svg></button>
+        <div class="progline" id="progLine" style="width:0%"></div>
+      </div>
+      <div class="reader-shell" id="readerShell" data-panel="1">
+        <nav class="toc" id="toc" aria-label="Table of contents"></nav>
+        <div class="readcol" id="readCol"></div>
+        <aside class="annot" id="annot" data-od-id="annotation-panel"></aside>
+      </div>
+    </section>
+
+    <!-- HIGHLIGHTS -->
+    <section class="view" data-view="highlights" data-od-id="view-highlights">
+      <div class="wrap">
+        <header style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+          <h2 class="page">Highlights</h2>
+          <span class="count" id="hlCount">—</span>
+          <button class="btn sm" style="margin-left:auto" data-act="review" data-od-id="review-mode-cta">
+            <svg class="ico sm" aria-hidden="true"><use href="#i-review"/></svg>Review mode</button>
+        </header>
+        <p class="lede">Everything you've marked, in one place. Each one keeps a way back to the paragraph it came from.</p>
+        <div class="toolbar">
+          <label class="field" style="flex:1;min-width:230px">
+            <svg class="ico sm" aria-hidden="true"><use href="#i-search"/></svg>
+            <span class="sr">Search highlights</span>
+            <input id="hlQ" type="search" placeholder="Search passages, notes, sources…">
+          </label>
+        </div>
+        <div class="hl-filters" id="hlFilters"></div>
+        <div class="hl-list" id="hlList"></div>
+      </div>
+    </section>
+
+    <!-- COLLECTIONS -->
+    <section class="view" data-view="collections" data-od-id="view-collections">
+      <div class="wrap">
+        <header style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+          <h2 class="page">Collections</h2>
+          <span class="count" id="collCount">—</span>
+          <button class="btn sm prime" style="margin-left:auto" data-act="new-collection">
+            <svg class="ico sm" aria-hidden="true"><use href="#i-plus"/></svg>New collection</button>
+        </header>
+        <p class="lede">Collections are groups you make on purpose. Tags stay loose; reading status is its own thing.</p>
+        <div class="coll-grid" id="collGrid"></div>
+      </div>
+    </section>
+
+    <!-- COLLECTION DETAIL -->
+    <section class="view" data-view="collection" data-od-id="view-collection-detail">
+      <div class="wrap" id="collDetail"></div>
+    </section>
+
+    <!-- SEARCH -->
+    <section class="view" data-view="search" data-od-id="view-search">
+      <div class="wrap">
+        <h2 class="page">Search</h2>
+        <p class="lede">Across titles, authors, document text, highlights, and your own notes.</p>
+        <label class="field" style="margin-top:24px;padding:15px 18px;font-size:16px" data-od-id="global-search-field">
+          <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+          <span class="sr">Search everything</span>
+          <input id="gQ" type="search" placeholder="Try “sidewalk”, “abstraction”, or “Asante”">
+        </label>
+        <div class="hintrow"><span class="caps">Try</span>
+          <button class="chip" data-q="sidewalk">sidewalk</button>
+          <button class="chip" data-q="abstraction">abstraction</button>
+          <button class="chip" data-q="Asante">Asante</button>
+          <button class="chip" data-q="quarterly">quarterly</button>
+        </div>
+        <div id="gResults"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" data-view="settings" data-od-id="view-settings">
+      <div class="wrap" style="max-width:760px">
+        <h2 class="page">Settings</h2>
+        <div id="setBody"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- floating layers -->
+<div class="seltool" id="selTool" role="toolbar" aria-label="Selection actions" hidden></div>
+<div class="pop" id="displayPop" hidden data-od-id="reader-display-controls"></div>
+<div class="pop" id="hlPop" hidden data-od-id="highlight-popover"></div>
+<div class="pop" id="menuPop" hidden></div>
+<div class="scrim" id="scrim" hidden><div id="modalHost"></div></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<template id="tpl-walk">
+<p class="drop">The intersection of Bellamy and Dockwell is, by any ordinary measure, a failure. It has four lanes in each direction, a refuge island the width of a filing cabinet, and a signal cycle that gives people on foot nineteen seconds to cross eighty-four feet of asphalt. Nobody designed it to be hostile. That is the uncomfortable part. Every element of it was approved by someone competent, following a standard, in a meeting with minutes.</p>
+<p>I have spent two years reading those minutes. What they record is not malice but a quiet accumulation of locally reasonable decisions: a turning radius widened for a fire truck that comes twice a year, a crossing removed because the count of pedestrians using it was low, a lane added because the model said delay would otherwise rise by forty seconds in 2041. Each decision, taken alone, is defensible. Taken together they produce a street that cannot be crossed.</p>
+<h2 id="s1">The arithmetic of a crossing</h2>
+<p>Traffic engineering has a number for almost everything, and the numbers are mostly honest. The trouble is which quantities get counted. Vehicle delay is measured in seconds per vehicle, aggregated over a peak hour, and reported to two decimal places. Pedestrian delay is measured, when it is measured at all, as a level-of-service letter that nobody signs off on.</p>
+<p>So the asymmetry is not ideological. It is clerical. <mark class="hl" data-id="h1" data-c="yellow" data-note="1">A street that cannot be crossed on foot is not a street; it is a wall with traffic on it.</mark> The wall is invisible in the analysis because walls are not in the units.</p>
+<p>Ask what the counts were, and you discover the second trap. Pedestrian volumes are counted where people currently walk. If a crossing is unpleasant, few people use it; if few people use it, the count is low; if the count is low, the crossing is a candidate for removal. The measurement participates in the outcome it claims to describe.</p>
+<h2 id="s2">What the curb remembers</h2>
+<p>Streets keep records in their geometry. You can read the decade of a corner from its radius the way you can read the decade of a building from its window proportions. The tight, almost square corners of a pre-war grid were cut for carts and for people stepping off a curb without ceremony. The long sweeping curves of the postwar arterial were cut for a design vehicle: a notional truck, modelled, that must never slow down.</p>
+<blockquote>The design vehicle is not a truck. It is a decision about who the street is willing to inconvenience.</blockquote>
+<p>Once poured, concrete is an argument that is very difficult to reopen. A signal timing plan can be changed on a Tuesday afternoon. A curb radius requires a capital project, a budget line, three rounds of consultation and, usually, a reason that is not simply "this is unpleasant." Comfort does not have a funding stream.</p>
+<p>This is why so much of the practical work of street repair is clerical rather than architectural. Changing which quantity appears in the first column of the spreadsheet does more, over a decade, than any individual redesign.</p>
+<h2 id="s3">Ninety seconds of waiting</h2>
+<p>At Bellamy and Dockwell the full signal cycle is one hundred and twenty seconds. A person arriving at the wrong moment waits, on average, forty-eight seconds, and at worst a little over a hundred. This is a long time. It is long enough to check a phone, long enough to reconsider the trip, and — critically — long enough that the expected cost of crossing against the signal starts to look rational.</p>
+<p>Engineers call the resulting behaviour non-compliance. I would call it arithmetic. People are extremely good at estimating the cost of waiting and fairly bad at estimating the cost of being hit, and the street has arranged for those two errors to point in the same direction.</p>
+<p class="pull">The fix is not education. It is to make the compliant choice the cheap one.</p>
+<p>Shortening the cycle to seventy seconds would cost drivers perhaps eleven seconds each in the evening peak. It would cut the worst-case pedestrian wait roughly in half. Nobody has proposed it, because the eleven seconds appear in a model with a name and a review process, and the fifty seconds appear nowhere at all.</p>
+<h2 id="s4">Rebuilding the short trip</h2>
+<p>The trips that disappear first in a car-shaped city are the short ones: the eight-minute walk to a pharmacy, the four-minute walk to a bus. These are also the trips that are cheapest to restore, because they do not require anybody to move house or change job. They require only that the distance be crossable.</p>
+<p>Three interventions do most of the work, and none of them are glamorous. Tighten the corner so that turning requires looking. Add the crossing back on the fourth leg, the one that was closed in 1987 for reasons nobody now remembers. Shorten the cycle. Together they cost less than a quarter-mile of resurfacing.</p>
+<p>What makes them hard is not money but narrative. A resurfacing project is maintenance; it needs no champion. A crossing is a change, and changes acquire opponents. The institutional default is inertia, and inertia in a street is never neutral — it is a vote for the arrangement that already exists.</p>
+<h2 id="s5">A street, eventually</h2>
+<p>I went back to Bellamy and Dockwell in March. The fourth crossing is still missing. But the signal cycle has quietly dropped to ninety seconds, because a technician retimed the corridor and nobody objected, and the difference is legible on the sidewalk: people stand nearer the curb, lean less, look up more.</p>
+<p>It is a small thing and it was not a project. It had no ribbon. It is also the only improvement to that intersection in nineteen years, and it happened because one person with access to the timing software decided that the pedestrian column was worth something.</p>
+<p>Most of the city will be repaired this way, if it is repaired at all: not by master plans but by a long sequence of people deciding, inside the ordinary bounds of their job, to count a different thing.</p>
+</template>
+
+<template id="tpl-feed">
+<p class="drop">There is a particular quality to the tiredness that follows an hour of scrolling, and it is not the tiredness of having read. Reading leaves residue. The feed leaves a kind of polished blankness, as if the mind has been wiped with a soft cloth.</p>
+<h2 id="s1">The shape of the thing</h2>
+<p>A feed has no end, and this is usually described as its defining feature. I think the more important property is that it has no shape. A magazine has a back cover. A book has a weight in the hand that tells you, continuously and without words, how much is left. These are not conveniences; they are the structure that makes attention finite and therefore spendable.</p>
+<p><mark class="hl" data-id="h2" data-c="blush">The feed does not steal your attention. It rents it back to you, hourly.</mark> You are never denied the thing you came for. You are simply never told that you have finished.</p>
+<h2 id="s2">Against the infinite</h2>
+<p>The alternative is not asceticism. It is edges. A reading queue with a visible bottom, a newsletter that arrives on Thursdays, a stack of saved pieces that can, in principle, be emptied. Finishing is a design feature, and we removed it on purpose because the metric we chose to optimise could not see it.</p>
+<p>I have started measuring my week by the number of things I finished rather than the number I encountered. The first number is small and slightly embarrassing. It is also, unlike the second, actually mine.</p>
+</template>
+
+<template id="tpl-stocks">
+<p class="drop">Most arguments about policy are arguments about rates disguised as arguments about levels, and almost nobody notices the substitution.</p>
+<h2 id="s1">Bathtubs</h2>
+<p>A stock is what is in the bathtub. A flow is what comes out of the taps and what goes down the drain. It sounds trivial until you watch a room full of intelligent people reason about the bath by staring at the taps.</p>
+<p><mark class="hl" data-id="h3" data-c="sage" data-note="1">A stock is just a flow that has learned patience.</mark> Housing is a stock. Emissions are a flow. Trust is a stock, and it drains far faster than it fills — which is why the arithmetic of apology is so unforgiving.</p>
+<h2 id="s2">Why waiting is a skill</h2>
+<p>Systems with long delays punish the responsive. If the feedback arrives eighteen months after the decision, then acting on this month's signal is not diligence but noise amplification. The discipline is to act on the trend and wait out the wobble — which is politically almost impossible, because waiting looks identical to neglect right up until it looks like foresight.</p>
+</template>
+
+<template id="tpl-compilers">
+<p class="drop">A compiler is the most patient reader you will ever have. It takes everything you wrote literally, forgives nothing, and remembers no context you did not write down.</p>
+<h2 id="s1">The literal reader</h2>
+<p>Working with one for twenty years rearranges how you write prose, too. You start to notice how much ordinary language leans on the reader's goodwill — the pronoun whose referent is three sentences back, the "obviously" doing structural work.</p>
+<p><mark class="hl" data-id="h4" data-c="blue">Every abstraction is a promise about what you will never need to look at again.</mark> The promise is always partially broken; the craft is in choosing which part.</p>
+</template>
+
+<script>
+/* ============================================================ data */
+const COLORS = {yellow:"Yellow", sage:"Sage", blue:"Blue", blush:"Blush"};
+
+const COLLECTIONS = [
+  {id:"design", name:"Design & Creativity", desc:"Criticism, type, and the way things are made.", tint:"var(--hl-blush)", fav:true},
+  {id:"tech",   name:"Technology",          desc:"Long essays about software and the people maintaining it.", tint:"var(--hl-blue)", fav:true},
+  {id:"revisit",name:"Books to Revisit",    desc:"Longer things worth a second pass, not a first skim.", tint:"var(--hl-yellow)", fav:true},
+  {id:"growth", name:"Personal Growth",     desc:"Quieter pieces about attention, habit, and finishing things.", tint:"var(--hl-sage)", fav:false},
+  {id:"cities", name:"Cities & Streets",    desc:"Urbanism, transit, and the politics of a curb radius.", tint:"var(--accent)", fav:true},
+  {id:"field",  name:"Field Notes",         desc:"A collection I made and haven't filled yet.", tint:"var(--muted)", fav:false}
+];
+
+const ITEMS = [
+  {id:1, title:"The City That Forgot How to Walk", author:"Mireille Asante", pub:"Slow Transit", mono:"ST",
+   type:"article", mins:18, saved:"2026-03-04", progress:62, status:"reading", fav:true, coll:"cities",
+   tags:["urbanism","infrastructure"], url:"slowtransit.example/the-city-that-forgot-how-to-walk", body:"tpl-walk",
+   excerpt:"Two years of meeting minutes explain how a street becomes uncrossable without anyone deciding to make it so."},
+  {id:2, title:"Against the Infinite Feed", author:"Jonas Keller", pub:"Greyscale", mono:"GS",
+   type:"article", mins:12, saved:"2026-03-02", progress:100, status:"archived", fav:false, coll:"design",
+   tags:["criticism","attention"], url:"greyscale.example/against-the-infinite-feed", body:"tpl-feed",
+   excerpt:"Finishing is a design feature, and we removed it on purpose."},
+  {id:3, title:"Stocks, Flows, and the Art of Waiting", author:"Priya Raghunathan", pub:"The Commons Review", mono:"CR",
+   type:"article", mins:24, saved:"2026-02-27", progress:41, status:"reading", fav:false, coll:"growth",
+   tags:["systems"], url:"commonsreview.example/stocks-flows-waiting", body:"tpl-stocks",
+   excerpt:"Most arguments about policy are arguments about rates disguised as arguments about levels."},
+  {id:4, title:"What Compilers Know About Us", author:"Teodor Vrána", pub:"Fieldnote", mono:"FN",
+   type:"article", mins:41, saved:"2026-02-25", progress:8, status:"reading", fav:false, coll:"tech",
+   tags:["technology","craft"], url:"fieldnote.example/what-compilers-know", body:"tpl-compilers",
+   excerpt:"The most patient reader you will ever have forgives nothing and remembers no context you did not write down."},
+  {id:5, title:"The Quiet Death of the Ground Floor", author:"Mireille Asante", pub:"Slow Transit", mono:"ST",
+   type:"newsletter", mins:9, saved:"2026-02-24", progress:0, status:"inbox", fav:false, coll:"cities",
+   tags:["urbanism"], url:"slowtransit.example/ground-floor",
+   excerpt:"Shutters, setbacks, and what a city loses when its street level stops being a room."},
+  {id:6, title:"Notes on legibility", author:"Nadia Albrecht", pub:"Personal note", mono:"NA",
+   type:"note", mins:3, saved:"2026-02-22", progress:0, status:"inbox", fav:false, coll:"design",
+   tags:["type","criticism"], url:"",
+   excerpt:"Scott's legibility is about the state seeing citizens. Type legibility is about readers seeing words. The overlap is not a metaphor — both are about who is allowed to be illegible."},
+  {id:7, title:"A Grammar of Shadows", author:"Beatriz Cardoso", pub:"Plinth Quarterly", mono:"PQ",
+   type:"pdf", mins:31, saved:"2026-02-20", progress:100, status:"archived", fav:true, coll:"design",
+   tags:["criticism","architecture"], url:"plinthquarterly.example/grammar-of-shadows",
+   excerpt:"On the Brazilian brise-soleil, and reading a façade as a sentence about climate."},
+  {id:8, title:"Feedback Loops in Municipal Budgets", author:"Anders Holm", pub:"Civic Futures", mono:"CF",
+   type:"pdf", mins:27, saved:"2026-02-18", progress:0, status:"inbox", fav:false, coll:"cities",
+   tags:["systems","urbanism"], url:"civicfutures.example/budget-loops",
+   excerpt:"Why a three-year capital cycle guarantees that the cheapest fixes are never the ones that get funded."},
+  {id:9, title:"The Long Now of Software Maintenance", author:"Rosalind Ngata", pub:"Fieldnote", mono:"FN",
+   type:"epub", mins:66, saved:"2026-02-15", progress:23, status:"reading", fav:false, coll:"revisit",
+   tags:["technology","systems"], url:"fieldnote.example/long-now-maintenance",
+   excerpt:"The only design discipline judged by what fails to happen."},
+  {id:10, title:"Sidewalk Ballet, Revisited", author:"Mireille Asante", pub:"Slow Transit", mono:"ST",
+   type:"newsletter", mins:7, saved:"2026-02-12", progress:100, status:"archived", fav:false, coll:"cities",
+   tags:["urbanism"], url:"slowtransit.example/sidewalk-ballet-revisited",
+   excerpt:"Sixty years on, the block Jacobs described has lost every one of its ground-floor tenants."},
+  {id:11, title:"On Not Finishing Books", author:"Jonas Keller", pub:"Greyscale", mono:"GS",
+   type:"article", mins:11, saved:"2026-02-10", progress:0, status:"inbox", fav:true, coll:"growth",
+   tags:["attention"], url:"greyscale.example/on-not-finishing-books",
+   excerpt:"An abandoned book is not a failure of discipline. It is a completed experiment."},
+  {id:12, title:"The Grain of the Machine", author:"Teodor Vrána", pub:"Fieldnote", mono:"FN",
+   type:"article", mins:22, saved:"2026-02-08", progress:55, status:"reading", fav:false, coll:"tech",
+   tags:["technology","craft"], url:"fieldnote.example/grain-of-the-machine",
+   excerpt:"Every material resists in its own way. Software's resistance is that it never tells you it is tired."}
+];
+
+const HIGHLIGHTS = [
+  {id:"h1", item:1, color:"yellow", text:"A street that cannot be crossed on foot is not a street; it is a wall with traffic on it.",
+   note:"Open the talk with this. Then the signal-timing slide.", tags:["urbanism"], when:"Mar 4"},
+  {id:"h2", item:2, color:"blush", text:"The feed does not steal your attention. It rents it back to you, hourly.",
+   note:"", tags:["attention"], when:"Mar 2"},
+  {id:"h3", item:3, color:"sage", text:"A stock is just a flow that has learned patience.",
+   note:"Same idea as the municipal budget piece, slower vocabulary. Worth putting side by side.", tags:["systems"], when:"Feb 28"},
+  {id:"h4", item:4, color:"blue", text:"Every abstraction is a promise about what you will never need to look at again.",
+   note:"", tags:["craft"], when:"Feb 26"},
+  {id:"h5", item:9, color:"sage", text:"Maintenance is the only design discipline that is judged by what fails to happen.",
+   note:"Quote in the maintenance memo — pairs with the budget-loop argument.", tags:["systems","technology"], when:"Feb 19"},
+  {id:"h6", item:7, color:"yellow", text:"A façade is a sentence the building says about its climate, and most new ones are mumbling.",
+   note:"", tags:["architecture"], when:"Feb 21"}
+];
+
+const TYPE_LABEL = {article:"Article", newsletter:"Newsletter", pdf:"PDF", epub:"EPUB", note:"Note"};
+
+/* ============================================================ state */
+const S = {
+  view:"home", prevView:"library",
+  items:ITEMS.map(i=>({...i})), highlights:HIGHLIGHTS.map(h=>({...h})), colls:COLLECTIONS.map(c=>({...c})),
+  lib:{status:"all", type:"all", tag:null, coll:null, q:"", sort:"saved", layout:"list"},
+  sel:new Set(),
+  hlFilter:{color:null, coll:null, source:null, tag:null, q:""},
+  reader:{id:1, font:"serif", size:19, lead:1.72, measure:66},
+  collId:null, gq:"", pendingHl:null, nextId:100
+};
+
+/* ============================================================ helpers */
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const item = id => S.items.find(i=>i.id===id);
+const coll = id => S.colls.find(c=>c.id===id);
+const ico = (n,cls="ico") => `<svg class="${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const fmtDate = s => new Date(s+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"});
+const mlabel = m => m>=60 ? `${Math.floor(m/60)} hr ${m%60} min` : `${m} min`;
+const plate = it => `<span class="plate" data-t="${it.type}" aria-hidden="true"><span class="frame"></span><b>${esc(it.mono)}</b><i>${TYPE_LABEL[it.type]}</i></span>`;
+const allTags = () => [...new Set(S.items.flatMap(i=>i.tags))].sort();
+
+function toast(msg, action){
+  const host = $("#toasts"); const el = document.createElement("div"); el.className="toast";
+  el.innerHTML = `<span>${esc(msg)}</span>`;
+  if(action){ const b=document.createElement("button"); b.textContent=action.label;
+    b.onclick=()=>{ action.fn(); el.remove(); }; el.appendChild(b); }
+  const x=document.createElement("button"); x.style.cssText="color:inherit;display:grid;place-items:center;width:24px;height:24px;padding:0";
+  x.setAttribute("aria-label","Dismiss"); x.innerHTML=ico("x","ico sm"); x.onclick=()=>el.remove(); el.appendChild(x);
+  host.appendChild(el); setTimeout(()=>el.remove(), action?9000:4200);
+}
+function closePops(){ ["#displayPop","#hlPop","#menuPop","#selTool"].forEach(s=>{const e=$(s); if(e) e.hidden=true;});
+  const d=$("#btnDisplay"); if(d) d.setAttribute("aria-expanded","false"); }
+function placePop(pop, rect, align="right"){
+  pop.hidden=false;
+  const w=pop.offsetWidth, h=pop.offsetHeight;
+  let left = align==="right" ? rect.right-w : rect.left;
+  left = Math.max(12, Math.min(left, innerWidth-w-12));
+  let top = rect.bottom+8;
+  if(top+h > innerHeight-12) top = Math.max(12, rect.top-h-8);
+  pop.style.left=left+"px"; pop.style.top=(top+scrollY)+"px";
+}
+
+/* ============================================================ router */
+function go(view, opts={}){
+  if(view==="library" && opts.status!==undefined) S.lib.status = opts.status;
+  if(view==="library" && opts.coll!==undefined) S.lib.coll = opts.coll;
+  if(view==="collection") S.collId = opts.id;
+  if(view==="reader" && opts.id) S.reader.id = opts.id;
+  if(S.view!=="reader" && view==="reader") S.prevView = S.view;
+  S.view = view;
+  $$(".view").forEach(v=>v.classList.toggle("on", v.dataset.view===view));
+  renderRail();
+  if(view==="home") renderHome();
+  if(view==="library") renderLibrary();
+  if(view==="reader") renderReader(opts);
+  if(view==="highlights") renderHighlights();
+  if(view==="collections") renderCollections();
+  if(view==="collection") renderCollectionDetail();
+  if(view==="search") renderSearch();
+  if(view==="settings") renderSettings();
+  if(!opts.keepScroll) $("#main").scrollTop = 0;
+  closePops();
+  try{ localStorage.setItem("libra:nav", JSON.stringify({view, status:S.lib.status, id:S.reader.id})); }catch(e){}
+}
+
+/* ============================================================ sidebar */
+function counts(){
+  const c = {all:0, inbox:0, reading:0, archived:0, fav:0, hl:S.highlights.length};
+  S.items.forEach(i=>{ c[i.status]++; if(i.status!=="archived") c.all++; if(i.fav) c.fav++; });
+  return c;
+}
+function renderRail(){
+  const c = counts();
+  Object.entries(c).forEach(([k,v])=>$$(`[data-n="${k}"]`).forEach(e=>e.textContent=v));
+  $$(".nav-item[data-nav]").forEach(b=>{
+    const isLib = b.dataset.nav==="library";
+    let on = b.dataset.nav===S.view;
+    if(isLib){
+      const st = b.dataset.status || "all";
+      on = S.view==="library" && S.lib.status===st && !S.lib.coll;
+    }
+    if(S.view==="collection" && b.dataset.nav==="collections") on = true;
+    on ? b.setAttribute("aria-current","page") : b.removeAttribute("aria-current");
+  });
+  $("#railColls").innerHTML = S.colls.map(cl=>{
+    const n = S.items.filter(i=>i.coll===cl.id).length;
+    const on = (S.view==="collection" && S.collId===cl.id) ? ' aria-current="page"' : "";
+    return `<button class="nav-item" data-coll="${cl.id}"${on}><span class="swatch" style="background:${cl.tint}"></span>${esc(cl.name)}<span class="n">${n}</span></button>`;
+  }).join("");
+  $("#railTags").innerHTML = allTags().map(t=>{
+    const n = S.items.filter(i=>i.tags.includes(t)).length;
+    const on = (S.view==="library" && S.lib.tag===t) ? ' aria-current="page"' : "";
+    return `<button class="nav-item" data-tagnav="${esc(t)}"${on}><span style="color:var(--muted);font-family:var(--mono);font-size:12px">#</span>${esc(t)}<span class="n">${n}</span></button>`;
+  }).join("");
+}
+
+/* ============================================================ home */
+function renderHome(){
+  const now = new Date();
+  const h = now.getHours();
+  const part = h<5 ? "Still up" : h<12 ? "Good morning" : h<18 ? "Good afternoon" : "Good evening";
+  $("#homeDate").textContent = now.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+  $("#homeGreet").textContent = `${part}, Nadia.`;
+  const inprog = S.items.filter(i=>i.status==="reading" && i.progress>0);
+  $("#homeLede").textContent = inprog.length
+    ? `${inprog.length} ${inprog.length===1?"piece is":"pieces are"} part-read. Nothing here is overdue — a library doesn't have deadlines.`
+    : "Nothing in progress. A good moment to start something from the inbox.";
+
+  const cont = inprog.sort((a,b)=>b.saved.localeCompare(a.saved))[0];
+  $("#homeContinue").innerHTML = cont ? `
+    <button class="continue" data-open="${cont.id}" data-od-id="continue-reading-card">
+      ${plate(cont)}
+      <span>
+        <span class="caps">${esc(cont.pub)} · ${mlabel(cont.mins)}</span>
+        <h3>${esc(cont.title)}</h3>
+        <p>${esc(cont.excerpt)}</p>
+        <span class="prog" style="max-width:420px"><span class="track"><span class="fill" style="width:${cont.progress}%"></span></span>
+        <span>${cont.progress}% · about ${Math.max(1,Math.round(cont.mins*(100-cont.progress)/100))} min left</span></span>
+      </span>
+    </button>` : `<div class="empty"><h3>Nothing part-read</h3><p>When you leave something half-finished it shows up here.</p></div>`;
+
+  const recent = [...S.items].sort((a,b)=>b.saved.localeCompare(a.saved)).slice(0,3);
+  $("#homeRecent").innerHTML = recent.map(cardHTML).join("");
+
+  const pool = S.highlights.filter(x=>x.note) ;
+  const hl = (pool.length?pool:S.highlights)[new Date().getDate() % (pool.length||S.highlights.length||1)] || S.highlights[0];
+  $("#homeHl").innerHTML = hl ? hlCardHTML(hl, true) : "";
+
+  $("#homeColls").innerHTML = S.colls.filter(c=>c.fav).map(cl=>{
+    const n = S.items.filter(i=>i.coll===cl.id).length;
+    return `<button class="coll-tile" data-collopen="${cl.id}"><span class="bar" style="background:${cl.tint}"></span>
+      <b>${esc(cl.name)}</b><span>${n} item${n===1?"":"s"}</span></button>`;
+  }).join("");
+}
+
+function hlCardHTML(h, big){
+  const it = item(h.item);
+  return `<button class="hl-card" data-hl="${h.id}" data-od-id="highlight-card-${h.id}">
+    <p class="hl-quote"><em style="background:var(--hl-${h.color})">${esc(h.text)}</em></p>
+    ${h.note?`<p class="hl-note">${esc(h.note)}</p>`:""}
+    <span class="hl-src">
+      <span class="chip" style="gap:6px"><span class="swatch" style="background:var(--hl-${h.color})"></span>${COLORS[h.color]}</span>
+      <span>${esc(it?it.title:"Unknown source")}</span><span class="dot">·</span><span>${esc(it?it.author:"")}</span>
+      ${h.tags.map(t=>`<span class="chip tag">#${esc(t)}</span>`).join("")}
+      <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;color:var(--accent)">${ico("chevr","ico sm")}Go to passage</span>
+    </span>
+  </button>`;
+}
+
+function cardHTML(i){
+  return `<div class="card" data-od-id="library-card-${i.id}">
+    <div class="acts">
+      <span class="iconbtn ${i.fav?"on":""}" data-fav="${i.id}" role="button" tabindex="0" aria-label="${i.fav?"Remove from favorites":"Add to favorites"}" aria-pressed="${i.fav}">${ico("star","ico sm")}</span>
+    </div>
+    ${plate(i)}
+    <button class="cardtitle" data-open="${i.id}">
+      <span class="caps">${esc(i.pub)}</span>
+      <h3>${esc(i.title)}</h3>
+      <span class="meta">${esc(i.author)} · ${mlabel(i.mins)}${i.progress>0&&i.progress<100?` · ${i.progress}% read`:""}</span>
+    </button>
+  </div>`;
+}
+
+/* ============================================================ library */
+function filtered(){
+  const f = S.lib;
+  let out = S.items.filter(i=>{
+    if(f.status==="fav" && !i.fav) return false;
+    if(f.status!=="all" && f.status!=="fav" && i.status!==f.status) return false;
+    if(f.status==="all" && i.status==="archived") return false;
+    if(f.type!=="all" && i.type!==f.type) return false;
+    if(f.tag && !i.tags.includes(f.tag)) return false;
+    if(f.coll && i.coll!==f.coll) return false;
+    if(f.q){
+      const q=f.q.toLowerCase();
+      if(!(i.title+" "+i.author+" "+i.pub+" "+i.tags.join(" ")).toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+  if(f.sort==="title") out.sort((a,b)=>a.title.localeCompare(b.title));
+  else if(f.sort==="progress") out.sort((a,b)=>b.progress-a.progress);
+  else out.sort((a,b)=>b.saved.localeCompare(a.saved));
+  return out;
+}
+const STATUS_TITLE = {all:"Library", inbox:"Inbox", reading:"Reading", archived:"Archived", fav:"Favorites"};
+const STATUS_CHIP = {inbox:"In inbox", reading:"Reading", archived:"Archived"};
+
+function renderLibrary(){
+  const f = S.lib;
+  const list = filtered();
+  const cl = f.coll ? coll(f.coll) : null;
+  $("#libTitle").textContent = cl ? cl.name : STATUS_TITLE[f.status];
+  $("#libCount").textContent = `${list.length} document${list.length===1?"":"s"}`;
+  $("#libQ").value = f.q;
+  $("#libSort").value = f.sort;
+  $("#viewList").setAttribute("aria-pressed", String(f.layout==="list"));
+  $("#viewGrid").setAttribute("aria-pressed", String(f.layout==="grid"));
+
+  const typeChips = ["all","article","newsletter","pdf","epub","note"].map(t=>
+    `<button class="chip" data-type="${t}" aria-pressed="${f.type===t}">${t==="all"?"All types":TYPE_LABEL[t]}</button>`).join("");
+  const statusChips = ["all","inbox","reading","archived","fav"].map(s=>
+    `<button class="chip" data-status="${s}" aria-pressed="${f.status===s}">${s==="all"?"All":STATUS_TITLE[s]}</button>`).join("");
+  const active = [];
+  if(f.tag) active.push(`<button class="chip on" data-cleartag="1">#${esc(f.tag)} ${ico("x","ico sm")}</button>`);
+  if(f.coll) active.push(`<button class="chip on" data-clearcoll="1">${esc(cl.name)} ${ico("x","ico sm")}</button>`);
+  $("#libFilters").innerHTML = statusChips + `<span class="divider"></span>` + typeChips +
+    (active.length?`<span class="divider"></span>`+active.join(""):"") +
+    `<button class="btn sm ghost" data-clearall="1" style="margin-left:auto">Reset filters</button>`;
+
+  if(!list.length){
+    const virgin = S.items.length===0;
+    $("#libBody").innerHTML = `<div class="empty" data-od-id="library-empty">
+      ${ico("logo","mark ico")}
+      <h3>${virgin?"Your library is empty":"Nothing matches these filters"}</h3>
+      <p>${virgin?"Save an article, drop in a PDF, or write a note. Everything you keep lands in the inbox first."
+                 :"Try a different status or type — or reset the filters and start again."}</p>
+      <button class="btn prime" data-act="${virgin?"open-add":"clearall"}">${virgin?"Add your first thing":"Reset filters"}</button>
+    </div>`;
+  } else if(f.layout==="grid"){
+    $("#libBody").innerHTML = `<div class="grid">${list.map(cardHTML).join("")}</div>`;
+  } else {
+    $("#libBody").innerHTML = `<div class="rows">${list.map(rowHTML).join("")}</div>`;
+  }
+  renderBulk();
+}
+
+function rowHTML(i){
+  const sel = S.sel.has(i.id);
+  const cl = coll(i.coll);
+  return `<div class="row" data-sel="${sel?1:0}" data-od-id="library-row-${i.id}">
+    <button class="pick" data-pick="${i.id}" role="checkbox" aria-checked="${sel}" aria-label="Select ${esc(i.title)}">${sel?ico("check","ico sm"):""}</button>
+    ${plate(i)}
+    <button class="rowtitle" data-open="${i.id}">
+      <h3>${esc(i.title)}</h3>
+      <span class="meta">
+        <span>${esc(i.author)}</span><span class="dot">·</span><span>${esc(i.pub)}</span><span class="dot">·</span>
+        <span>${TYPE_LABEL[i.type]}</span><span class="dot">·</span><span>${mlabel(i.mins)}</span><span class="dot">·</span>
+        <span>Saved ${fmtDate(i.saved)}</span>
+        ${i.status!=="reading"?`<span class="chip" style="margin-left:2px">${STATUS_CHIP[i.status]}</span>`:""}
+      </span>
+      ${i.tags.length||cl?`<span class="tags">${cl?`<span class="chip"><span class="swatch" style="background:${cl.tint}"></span>${esc(cl.name)}</span>`:""}${i.tags.map(t=>`<span class="chip tag">#${esc(t)}</span>`).join("")}</span>`:""}
+      ${i.progress>0?`<span class="prog"><span class="track"><span class="fill" style="width:${i.progress}%"></span></span><span>${i.progress===100?"Finished":i.progress+"%"}</span></span>`:""}
+    </button>
+    <span class="acts">
+      <button class="iconbtn ${i.fav?"on":""}" data-fav="${i.id}" aria-pressed="${i.fav}" aria-label="${i.fav?"Remove from favorites":"Add to favorites"}">${ico("star")}</button>
+      <button class="iconbtn" data-menu="${i.id}" aria-label="More actions for ${esc(i.title)}">${ico("more")}</button>
+    </span>
+  </div>`;
+}
+
+function renderBulk(){
+  const n = S.sel.size;
+  $("#bulk").innerHTML = n ? `<div class="bulkbar" data-od-id="bulk-actions">
+    <b>${n} selected</b><span class="sp"></span>
+    <button class="btn sm" data-bulk="tag">${ico("tag","ico sm")}Add tag</button>
+    <button class="btn sm" data-bulk="move">${ico("coll","ico sm")}Move to collection</button>
+    <button class="btn sm" data-bulk="archive">${ico("arch","ico sm")}Archive</button>
+    <button class="btn sm ghost" data-bulk="clear" aria-label="Clear selection">${ico("x","ico sm")}</button>
+  </div>` : "";
+}
+
+/* ============================================================ reader */
+function renderReader(opts={}){
+  const i = item(S.reader.id);
+  if(!i){ go("library"); return; }
+  $("#readCrumb").textContent = (coll(i.coll)?.name || "Library") + " / " + i.title;
+  $("#btnFav").setAttribute("aria-pressed", String(i.fav));
+  $("#btnFav").classList.toggle("on", i.fav);
+
+  const tpl = i.body ? $("#"+i.body) : null;
+  const bodyHTML = tpl ? tpl.innerHTML
+    : `<p class="drop">${esc(i.excerpt)}</p>
+       <div class="state"><span class="ic">${ico("alert")}</span><span><b>Full text not included in this prototype</b>
+       <p>This document's body isn't part of the sample data. Highlighting and notes are wired on the four articles that are.</p></span></div>`;
+
+  $("#readCol").innerHTML = `
+    <article class="article" id="articleBody" data-font="${S.reader.font}"
+      style="--read-size:${S.reader.size}px;--read-lead:${S.reader.lead}">
+      <header class="art-head" data-od-id="article-header">
+        <span class="caps">${TYPE_LABEL[i.type]} · ${mlabel(i.mins)}</span>
+        <h1>${esc(i.title)}</h1>
+        <div class="by">
+          <span>${esc(i.author)}</span><span class="dot">·</span><span>${esc(i.pub)}</span>
+          ${i.url?`<a href="#" data-noop="1">${esc(i.url)} ${ico("ext","ico sm")}</a>`:""}
+        </div>
+      </header>
+      ${bodyHTML}
+      <div class="endcap" data-od-id="reader-endcap">
+        <span>You're at the end of this ${TYPE_LABEL[i.type].toLowerCase()}.</span>
+        ${i.status==="archived"
+          ? `<span class="chip on">${ico("check","ico sm")}Archived</span>`
+          : `<button class="btn prime sm" data-act="reader-archive">${ico("arch","ico sm")}Archive it</button>`}
+        <button class="btn sm" data-act="reader-back">Back to ${esc(STATUS_TITLE[S.lib.status]||"Library")}</button>
+      </div>
+    </article>`;
+  $("#readCol").style.setProperty("--measure", S.reader.measure);
+  $(".readcol").style.maxWidth = `calc(${S.reader.measure}ch + 88px)`;
+
+  applyRuntimeHighlights();
+  renderTOC();
+  renderAnnot();
+  updateProgress();
+  if(opts.hl) requestAnimationFrame(()=>jumpToHighlight(opts.hl));
+}
+
+function applyRuntimeHighlights(){
+  const root = $("#articleBody"); if(!root) return;
+  S.highlights.filter(h=>h.item===S.reader.id).forEach(h=>{
+    let mk = root.querySelector(`mark.hl[data-id="${h.id}"]`);
+    if(!mk && h.created){
+      const blocks = [...root.querySelectorAll("p, blockquote")];
+      const target = blocks.find(b=>b.textContent.includes(h.text) && !b.querySelector("mark.hl"));
+      if(target){
+        target.innerHTML = target.innerHTML.replace(esc(h.text),
+          `<mark class="hl" data-id="${h.id}" data-c="${h.color}">${esc(h.text)}</mark>`);
+        mk = root.querySelector(`mark.hl[data-id="${h.id}"]`);
+      }
+    }
+    if(mk){ mk.dataset.c = h.color; h.note ? mk.setAttribute("data-note","1") : mk.removeAttribute("data-note"); }
+  });
+}
+
+function renderTOC(){
+  const hs = $$("#articleBody h2");
+  $("#toc").innerHTML = hs.length
+    ? `<span class="caps">Contents</span>` + hs.map(h=>`<a href="#" data-toc="${h.id}">${esc(h.textContent)}</a>`).join("")
+    : `<span class="caps">Contents</span><p style="font-size:13px;color:var(--muted);line-height:1.5">Short enough not to need one.</p>`;
+}
+
+function renderAnnot(){
+  const i = item(S.reader.id);
+  const mine = S.highlights.filter(h=>h.item===S.reader.id);
+  $("#annot").innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:20px">
+      <span class="caps">Annotations</span><span class="count">${mine.length}</span>
+    </div>
+    ${mine.length ? mine.map(h=>`
+      <button class="annot-item" data-c="${h.color}" data-gohl="${h.id}">
+        <q>${esc(h.text)}</q>
+        ${h.note?`<div class="n">${esc(h.note)}</div>`:`<div class="n" style="opacity:.75">No note yet</div>`}
+      </button>`).join("")
+    : `<p style="font-size:13px;color:var(--muted);line-height:1.6">Select any passage to highlight it. Notes you attach show up here and in Highlights.</p>`}
+    <hr style="border:0;border-top:1px solid var(--border);margin:24px 0">
+    <span class="caps">Document</span>
+    <div style="font-size:13px;color:var(--muted);line-height:1.9;margin-top:12px">
+      <div>Saved ${fmtDate(i.saved)}</div>
+      <div>${mlabel(i.mins)} · ${TYPE_LABEL[i.type]}</div>
+      <div>Collection: ${esc(coll(i.coll)?.name || "None")}</div>
+      <div>Status: ${STATUS_CHIP[i.status]}</div>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:14px">
+      ${i.tags.map(t=>`<span class="chip tag">#${esc(t)}</span>`).join("")}
+      <button class="chip" data-act="reader-tag">${ico("plus","ico sm")}Tag</button>
+    </div>`;
+}
+
+function updateProgress(){
+  const main = $("#main");
+  if(S.view!=="reader") return;
+  const max = main.scrollHeight - main.clientHeight;
+  const pct = max>0 ? Math.min(100, Math.round(main.scrollTop/max*100)) : 0;
+  $("#progLine").style.width = pct+"%";
+  const i = item(S.reader.id);
+  if(i && i.body && pct > i.progress) { i.progress = pct; if(i.status==="inbox") i.status="reading"; }
+  const hs = $$("#articleBody h2");
+  let cur = null;
+  hs.forEach(h=>{ if(h.getBoundingClientRect().top < 140) cur = h.id; });
+  $$("#toc a").forEach(a=>a.setAttribute("aria-current", String(a.dataset.toc===cur)));
+}
+
+function jumpToHighlight(id){
+  const mk = $(`mark.hl[data-id="${id}"]`);
+  if(!mk) return;
+  const main = $("#main"), r = mk.getBoundingClientRect(), mr = main.getBoundingClientRect();
+  main.scrollTop += r.top - mr.top - main.clientHeight*0.34;
+  mk.classList.remove("flash"); void mk.offsetWidth; mk.classList.add("flash");
+}
+
+/* ============================================================ highlights */
+function hlFiltered(){
+  const f = S.hlFilter;
+  return S.highlights.filter(h=>{
+    const it = item(h.item);
+    if(f.color && h.color!==f.color) return false;
+    if(f.coll && (!it || it.coll!==f.coll)) return false;
+    if(f.source && (!it || it.id!==f.source)) return false;
+    if(f.tag && !h.tags.includes(f.tag)) return false;
+    if(f.q){
+      const q = f.q.toLowerCase();
+      if(!((h.text+" "+h.note+" "+(it?it.title+" "+it.author:"")).toLowerCase().includes(q))) return false;
+    }
+    return true;
+  });
+}
+function renderHighlights(){
+  const f = S.hlFilter;
+  const list = hlFiltered();
+  $("#hlCount").textContent = `${list.length} of ${S.highlights.length}`;
+  $("#hlQ").value = f.q;
+  const sources = [...new Set(S.highlights.map(h=>h.item))].map(id=>item(id)).filter(Boolean);
+  const tags = [...new Set(S.highlights.flatMap(h=>h.tags))];
+  $("#hlFilters").innerHTML =
+    Object.keys(COLORS).map(c=>`<button class="chip" data-hlcolor="${c}" aria-pressed="${f.color===c}">
+      <span class="swatch" style="background:var(--hl-${c})"></span>${COLORS[c]}</button>`).join("") +
+    `<span class="divider"></span>` +
+    `<select class="sel" data-hlsrc aria-label="Filter by source"><option value="">Any source</option>${
+      sources.map(s=>`<option value="${s.id}"${f.source===s.id?" selected":""}>${esc(s.title)}</option>`).join("")}</select>` +
+    `<select class="sel" data-hlcoll aria-label="Filter by collection"><option value="">Any collection</option>${
+      S.colls.map(c=>`<option value="${c.id}"${f.coll===c.id?" selected":""}>${esc(c.name)}</option>`).join("")}</select>` +
+    tags.map(t=>`<button class="chip tag" data-hltag="${esc(t)}" aria-pressed="${f.tag===t}">#${esc(t)}</button>`).join("") +
+    `<button class="btn sm ghost" data-hlclear="1" style="margin-left:auto">Reset</button>`;
+
+  $("#hlList").innerHTML = list.length ? list.map(h=>hlCardHTML(h)).join("")
+    : `<div class="empty">${ico("hl","mark ico")}<h3>No highlights match</h3>
+       <p>Loosen a filter, or open something from the library and mark a passage.</p>
+       <button class="btn" data-hlclear="1">Reset filters</button></div>`;
+}
+
+/* ============================================================ collections */
+function renderCollections(){
+  $("#collCount").textContent = `${S.colls.length} collections`;
+  $("#collGrid").innerHTML = S.colls.map(c=>{
+    const n = S.items.filter(i=>i.coll===c.id).length;
+    return `<button class="coll-card" data-collopen="${c.id}" data-od-id="collection-card-${c.id}">
+      <span class="bar" style="background:${c.tint}"></span>
+      <h3>${esc(c.name)}</h3><p>${esc(c.desc)}</p>
+      <div class="n">${n} item${n===1?"":"s"}${c.fav?" · favorite":""}</div>
+    </button>`;
+  }).join("");
+}
+
+function renderCollectionDetail(){
+  const c = coll(S.collId);
+  if(!c){ go("collections"); return; }
+  const items = S.items.filter(i=>i.coll===c.id);
+  $("#collDetail").innerHTML = `
+    <button class="btn sm ghost" data-nav="collections" style="margin-bottom:18px">${ico("chevl","ico sm")}All collections</button>
+    <header style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <span style="width:4px;align-self:stretch;min-height:52px;border-radius:2px;background:${c.tint}"></span>
+      <div style="flex:1;min-width:260px">
+        <h2 class="page">${esc(c.name)}</h2>
+        <p class="lede">${esc(c.desc)}</p>
+      </div>
+      <button class="btn sm" data-colledit="${c.id}">${ico("edit","ico sm")}Edit collection</button>
+    </header>
+    <div class="toolbar"><span class="count">${items.length} item${items.length===1?"":"s"}</span>
+      <span class="sp" style="flex:1"></span>
+      <button class="btn sm" data-collfilter="${c.id}">${ico("list","ico sm")}Open in library with filters</button>
+    </div>
+    ${items.length ? `<div class="rows">${items.map(rowHTML).join("")}</div>`
+      : `<div class="empty">${ico("coll","mark ico")}<h3>Nothing in ${esc(c.name)} yet</h3>
+         <p>Move items here from the library, or save straight into it when you add something.</p>
+         <button class="btn prime" data-act="open-add">${ico("plus","ico sm")}Add content</button></div>`}`;
+}
+
+/* ============================================================ search */
+function renderSearch(){
+  $("#gQ").value = S.gq;
+  const q = S.gq.trim().toLowerCase();
+  const host = $("#gResults");
+  if(!q){ host.innerHTML = `<div class="empty" style="border:0;padding-top:56px">${ico("search","mark ico")}
+    <h3>Search your whole library</h3><p>Titles, authors and publications, the text of saved documents, your highlights, and your notes.</p></div>`; return; }
+
+  const snip = (txt, n=150)=>{
+    const idx = txt.toLowerCase().indexOf(q);
+    if(idx<0) return esc(txt.slice(0,n));
+    const s = Math.max(0, idx-60);
+    return (s>0?"… ":"") + esc(txt.slice(s, idx)) + "<b>" + esc(txt.slice(idx, idx+q.length)) + "</b>" + esc(txt.slice(idx+q.length, idx+q.length+90)) + " …";
+  };
+  const bodyText = i => { const t = i.body ? $("#"+i.body) : null; return t ? t.textContent.replace(/\s+/g," ").trim() : i.excerpt; };
+
+  const docs = S.items.filter(i=>(i.title+" "+i.author+" "+i.pub).toLowerCase().includes(q));
+  const inText = S.items.filter(i=>!docs.includes(i) && bodyText(i).toLowerCase().includes(q));
+  const hls = S.highlights.filter(h=>h.text.toLowerCase().includes(q));
+  const notes = S.highlights.filter(h=>h.note && h.note.toLowerCase().includes(q))
+    .concat(S.items.filter(i=>i.type==="note" && i.excerpt.toLowerCase().includes(q)).map(i=>({id:"n"+i.id, item:i.id, note:i.excerpt, isDoc:true})));
+
+  const total = docs.length+inText.length+hls.length+notes.length;
+  if(!total){
+    host.innerHTML = `<div class="empty">${ico("search","mark ico")}<h3>No results for “${esc(S.gq)}”</h3>
+      <p>Nothing in titles, document text, highlights, or notes. Check the spelling, or try a single word.</p>
+      <button class="btn" data-gclear="1">Clear search</button></div>`;
+    return;
+  }
+  const group = (label, n, inner) => n ? `<section class="resgroup"><h3 class="caps">${label} · ${n}</h3>${inner}</section>` : "";
+  host.innerHTML =
+    group("Documents", docs.length, docs.map(i=>`<button class="res" data-open="${i.id}">
+      <h4>${snip(i.title)}</h4><p>${esc(i.excerpt)}</p>
+      <span class="where">${ico("doc","ico sm")}${esc(i.author)} · ${esc(i.pub)} · ${TYPE_LABEL[i.type]}</span></button>`).join("")) +
+    group("In document text", inText.length, inText.map(i=>`<button class="res" data-open="${i.id}">
+      <h4>${esc(i.title)}</h4><p>${snip(bodyText(i))}</p>
+      <span class="where">${ico("doc","ico sm")}Opens the reader at the top of ${esc(i.title)}</span></button>`).join("")) +
+    group("Highlights", hls.length, hls.map(h=>{const it=item(h.item);return `<button class="res" data-hl="${h.id}">
+      <h4>${snip(h.text)}</h4>${h.note?`<p>Note — ${esc(h.note)}</p>`:""}
+      <span class="where"><span class="swatch" style="background:var(--hl-${h.color})"></span>${esc(it?it.title:"")} · back to the passage</span></button>`}).join("")) +
+    group("Notes", notes.length, notes.map(n=>{const it=item(n.item);return `<button class="res" data-${n.isDoc?"open":"hl"}="${n.isDoc?n.item:n.id}">
+      <h4>${esc(it?it.title:"Note")}</h4><p>${snip(n.note)}</p>
+      <span class="where">${ico("note","ico sm")}${n.isDoc?"Personal note":"Note on a highlight"}</span></button>`}).join(""));
+}
+
+/* ============================================================ settings */
+function renderSettings(){
+  const theme = document.documentElement.dataset.theme;
+  const sw = t => t==="light"
+    ? "background:oklch(0.979 0.003 85);box-shadow:inset 0 -14px 0 oklch(0.960 0.004 100)"
+    : "background:oklch(0.198 0.005 75);box-shadow:inset 0 -14px 0 oklch(0.246 0.005 75)";
+  $("#setBody").innerHTML = `
+  <section class="setgroup" data-od-id="settings-appearance">
+    <h3>Appearance</h3><p class="lede">Light is warm paper; dark is warm charcoal. Neither uses pure black or white.</p>
+    <div class="setrow"><div><b>Theme</b><p>Applies everywhere, including the reader.</p></div>
+      <div class="themecards">
+        ${["light","dark"].map(t=>`<button class="themecard" data-theme="${t}" aria-pressed="${theme===t}">
+          <span class="sw" style="${sw(t)}"></span><span>${t==="light"?"Ivory":"Charcoal"}</span></button>`).join("")}
+      </div></div>
+    <div class="setrow"><div><b>Reduce motion</b><p>Already following your system setting. Highlight flashes become a static outline.</p></div>
+      <span class="chip on">${ico("check","ico sm")}System</span></div>
+  </section>
+
+  <section class="setgroup" data-od-id="settings-reading">
+    <h3>Reading defaults</h3><p class="lede">Starting point for every document. Per-document changes stick to that document.</p>
+    <div class="setrow"><div><b>Typeface</b><p>Newsreader for reading; the UI grotesk if you prefer sans.</p></div>
+      <div class="seg" role="group" aria-label="Default typeface">
+        <button style="width:auto;padding:0 16px" data-setfont="serif" aria-pressed="${S.reader.font==="serif"}">Serif</button>
+        <button style="width:auto;padding:0 16px" data-setfont="sans" aria-pressed="${S.reader.font==="sans"}">Sans</button>
+      </div></div>
+    <div class="setrow"><div><b>Text size</b><p>Currently ${S.reader.size}px.</p></div>
+      <input type="range" min="15" max="26" step="1" value="${S.reader.size}" data-setsize style="width:180px" aria-label="Default text size"></div>
+    <div class="setrow"><div><b>Column width</b><p>${S.reader.measure} characters per line — 50–75 is comfortable.</p></div>
+      <input type="range" min="48" max="86" step="1" value="${S.reader.measure}" data-setmeasure style="width:180px" aria-label="Default column width"></div>
+  </section>
+
+  <section class="setgroup" data-od-id="settings-data">
+    <h3>Import and export</h3>
+    <div class="setrow"><div><b>Import</b><p>Pocket, Instapaper, or a folder of EPUBs and PDFs.</p></div>
+      <button class="btn sm" data-act="open-add">${ico("up","ico sm")}Import…</button></div>
+    <div class="setrow"><div><b>Export highlights</b><p>Markdown or CSV, grouped by source. Notes and tags come along.</p></div>
+      <button class="btn sm" data-act="export">${ico("dl","ico sm")}Export</button></div>
+  </section>
+
+  <section class="setgroup" data-od-id="settings-account">
+    <h3>Account</h3>
+    <div class="setrow"><div><b>Nadia Albrecht</b><p>nadia@albrecht.example · Free plan, 12 of 100 documents</p></div>
+      <button class="btn sm">Manage</button></div>
+    <div class="setrow"><div><b>Sync</b><p>Last synced a moment ago on this device.</p></div>
+      <span class="chip on">${ico("check","ico sm")}Up to date</span></div>
+  </section>
+
+  <section class="setgroup" data-od-id="settings-shortcuts">
+    <h3>Keyboard shortcuts</h3>
+    ${[["/","Jump to search"],["A","Add content"],["G then L","Go to library"],["G then H","Go to highlights"],
+       ["H","Highlight the current selection"],["N","Add a note to the last highlight"],["E","Archive what you're reading"],
+       ["T","Toggle theme"],["Esc","Close whatever is open"]]
+      .map(([k,d])=>`<div class="setrow"><div><b>${d}</b></div><span class="kbd">${k}</span></div>`).join("")}
+  </section>`;
+}
+
+/* ==== RENDERERS ==== */
+/* ============================================================ modal plumbing */
+function openModal(html, onMount){
+  $("#modalHost").innerHTML = html;
+  $("#scrim").hidden = false;
+  if(onMount) onMount();
+  const f = $("#modalHost").querySelector("[data-autofocus], input, textarea, button");
+  if(f) f.focus();
+}
+function closeModal(){ $("#scrim").hidden = true; $("#modalHost").innerHTML = ""; }
+
+/* ============================================================ theme */
+function setTheme(t){
+  document.documentElement.dataset.theme = t;
+  try{ localStorage.setItem("libra:theme", t); }catch(e){}
+  if(S.view==="settings") renderSettings();
+}
+
+/* ============================================================ item actions */
+function toggleFav(id){
+  const i = item(id); if(!i) return;
+  i.fav = !i.fav;
+  toast(i.fav ? `Added “${i.title}” to favorites` : `Removed “${i.title}” from favorites`);
+  rerender();
+}
+function archiveItem(id, silent){
+  const i = item(id); if(!i || i.status==="archived") return;
+  const prev = {status:i.status, progress:i.progress};
+  i.status = "archived";
+  if(i.progress < 100) i.progress = 100;
+  if(!silent) toast(`“${i.title}” archived`, {label:"Undo", fn(){ i.status=prev.status; i.progress=prev.progress; toast("Put back"); rerender(); }});
+  rerender();
+}
+function rerender(){
+  renderRail();
+  if(S.view==="library") renderLibrary();
+  if(S.view==="home") renderHome();
+  if(S.view==="highlights") renderHighlights();
+  if(S.view==="collections") renderCollections();
+  if(S.view==="collection") renderCollectionDetail();
+  if(S.view==="search") renderSearch();
+  if(S.view==="reader"){
+    const i = item(S.reader.id);
+    $("#btnFav").setAttribute("aria-pressed", String(i.fav));
+    $("#btnFav").classList.toggle("on", i.fav);
+    renderAnnot();
+  }
+}
+
+/* ============================================================ highlights */
+function newHighlightFromSelection(color){
+  const sel = window.getSelection();
+  if(!sel || sel.isCollapsed) return null;
+  const text = sel.toString().trim();
+  if(text.length < 3) return null;
+  const body = $("#articleBody");
+  if(!body || !body.contains(sel.anchorNode)) return null;
+  const id = "r" + (S.nextId++);
+  const mk = document.createElement("mark");
+  mk.className = "hl"; mk.dataset.id = id; mk.dataset.c = color;
+  const r = sel.getRangeAt(0);
+  try{ r.surroundContents(mk); }
+  catch(e){ mk.appendChild(r.extractContents()); r.insertNode(mk); }
+  sel.removeAllRanges();
+  const h = {id, item:S.reader.id, color, text, note:"", tags:[], when:"Just now", created:true};
+  S.highlights.unshift(h);
+  renderAnnot(); renderRail();
+  return h;
+}
+function openNoteEditor(hlId){
+  const h = S.highlights.find(x=>x.id===hlId); if(!h) return;
+  closePops();
+  openModal(`
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Note on highlight">
+    <div class="modal-head">
+      <span class="swatch" style="width:14px;height:14px;background:var(--hl-${h.color})"></span>
+      <h3>${h.note?"Edit note":"Add a note"}</h3>
+      <span class="sp" style="flex:1"></span>
+      <button class="iconbtn" data-closemodal="1" aria-label="Close">${ico("x")}</button>
+    </div>
+    <div class="modal-body">
+      <blockquote style="margin:0 0 20px;padding:14px 18px;border-left:3px solid var(--hl-${h.color});background:var(--well);
+        border-radius:0 var(--r-sm) var(--r-sm) 0;font-family:var(--serif);font-size:16px;line-height:1.6">${esc(h.text)}</blockquote>
+      <label class="lbl" for="noteText">Your note</label>
+      <textarea class="inp" id="noteText" data-autofocus placeholder="What made this worth keeping?">${esc(h.note)}</textarea>
+      <label class="lbl" for="noteTags" style="margin-top:18px">Tags</label>
+      <input class="inp" id="noteTags" value="${esc(h.tags.join(", "))}" placeholder="urbanism, systems">
+      <div class="hintrow"><span class="caps">Color</span>
+        ${Object.keys(COLORS).map(c=>`<button class="chip" data-recolor="${c}" aria-pressed="${h.color===c}">
+          <span class="swatch" style="background:var(--hl-${c})"></span>${COLORS[c]}</button>`).join("")}</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn sm ghost" data-delhl="${h.id}">${ico("trash","ico sm")}Delete highlight</button>
+      <span class="sp"></span>
+      <button class="btn sm" data-closemodal="1">Cancel</button>
+      <button class="btn sm prime" data-savenote="${h.id}">Save note</button>
+    </div>
+  </div>`);
+}
+
+/* ============================================================ add content */
+const CLIPBOARD = [
+  {label:"slowtransit.example/the-crosswalk-tax", url:"slowtransit.example/the-crosswalk-tax"},
+  {label:"plinthquarterly.example/paywall-notes", url:"plinthquarterly.example/paywall-notes"},
+  {label:"slowtransit.example/the-city-that-forgot-how-to-walk", url:"slowtransit.example/the-city-that-forgot-how-to-walk"}
+];
+const FETCHABLE = {
+  "slowtransit.example/the-crosswalk-tax":{
+    title:"The Crosswalk Tax", author:"Mireille Asante", pub:"Slow Transit", mono:"ST", type:"article", mins:14,
+    excerpt:"What a city charges people, in minutes, for the right to get to the other side."},
+  "greyscale.example/the-quiet-interface":{
+    title:"The Quiet Interface", author:"Jonas Keller", pub:"Greyscale", mono:"GS", type:"article", mins:16,
+    excerpt:"Software that asks for less of your attention is harder to build and easier to keep."}
+};
+let ADD = {tab:"url", phase:"idle", url:"", data:null, coll:"", tags:"", dupId:null};
+
+function addModalHTML(){
+  const tab = ADD.tab;
+  const tabBtn = (id,label,icon) => `<button role="tab" aria-selected="${tab===id}" data-addtab="${id}">${ico(icon,"ico sm")} ${label}</button>`;
+  let body = "";
+  if(tab==="url"){
+    body = `
+      <label class="lbl" for="addUrl">Article or page address</label>
+      <input class="inp" id="addUrl" data-autofocus value="${esc(ADD.url)}" placeholder="slowtransit.example/an-article">
+      <div class="hintrow"><span class="caps">Recently copied</span>
+        ${CLIPBOARD.map(c=>`<button class="chip" data-paste="${esc(c.url)}">${ico("link","ico sm")}${esc(c.label)}</button>`).join("")}</div>
+      ${ADD.phase==="loading" ? `
+        <div class="preview" aria-live="polite">
+          <span class="plate" style="background:var(--surface)"><span class="frame"></span></span>
+          <span><span class="skel" style="width:70%"></span>
+            <span class="skel" style="width:45%;margin-top:12px;display:block"></span>
+            <span class="skel" style="width:90%;margin-top:12px;display:block"></span>
+            <span style="display:block;margin-top:14px;font-size:12.5px;color:var(--muted)">Fetching the page and stripping the furniture…</span></span>
+        </div>` : ""}
+      ${ADD.phase==="ready" ? previewHTML() : ""}
+      ${ADD.phase==="dup" ? `
+        <div class="state warn"><span class="ic">${ico("alert")}</span><span>
+          <b>You already saved this</b><p>“${esc(item(ADD.dupId).title)}” is in your ${STATUS_CHIP[item(ADD.dupId).status].toLowerCase()}, saved ${fmtDate(item(ADD.dupId).saved)}.</p>
+          <span style="display:flex;gap:9px;margin-top:14px">
+            <button class="btn sm" data-opendup="${ADD.dupId}">Open the one you have</button>
+            <button class="btn sm ghost" data-saveanyway="1">Save a second copy</button></span></span></div>` : ""}
+      ${ADD.phase==="error" ? `
+        <div class="state err"><span class="ic">${ico("alert")}</span><span>
+          <b>Couldn't read that page</b><p>The server returned a paywall instead of the article. You can retry, or keep just the link and open it later.</p>
+          <span style="display:flex;gap:9px;margin-top:14px">
+            <button class="btn sm" data-retry="1">${ico("undo","ico sm")}Retry</button>
+            <button class="btn sm ghost" data-savelink="1">Save the link only</button></span></span></div>` : ""}`;
+  } else if(tab==="file"){
+    body = `
+      <div class="empty" style="margin-top:0;padding:52px 28px">
+        ${ico("up","mark ico")}
+        <h3>Drop a PDF or EPUB</h3>
+        <p>Up to 80 MB. Libra keeps the original and builds a reflowable reading copy alongside it.</p>
+        <button class="btn prime" data-filepick="1">Choose a file</button>
+      </div>`;
+  } else {
+    body = `
+      <label class="lbl" for="noteTitle">Title</label>
+      <input class="inp" id="noteTitle" data-autofocus placeholder="Notes on…">
+      <label class="lbl" for="noteBody" style="margin-top:18px">Note</label>
+      <textarea class="inp" id="noteBody" style="min-height:150px" placeholder="Write it down before it evaporates."></textarea>`;
+  }
+  const canSave = (ADD.tab==="url" && ADD.phase==="ready") || ADD.tab==="note";
+  return `
+  <div class="modal wide" role="dialog" aria-modal="true" aria-label="Add content" data-od-id="add-content-modal">
+    <div class="modal-head">
+      <h3>Add content</h3><span class="sp" style="flex:1"></span>
+      <button class="iconbtn" data-closemodal="1" aria-label="Close">${ico("x")}</button>
+    </div>
+    <div class="modal-body">
+      <div class="tabs" role="tablist">
+        ${tabBtn("url","Paste a URL","link")}${tabBtn("file","Upload a file","up")}${tabBtn("note","Write a note","note")}
+      </div>
+      ${body}
+    </div>
+    <div class="modal-foot">
+      <span style="font-size:12.5px;color:var(--muted)">Everything lands in your inbox unless you pick a collection.</span>
+      <span class="sp"></span>
+      <button class="btn sm" data-closemodal="1">Cancel</button>
+      ${ADD.tab==="url" && ADD.phase!=="ready"
+        ? `<button class="btn sm prime" data-fetch="1">${ico("search","ico sm")}Fetch preview</button>`
+        : `<button class="btn sm prime" data-save="1" ${canSave?"":"disabled style=opacity:.5"}>${ico("check","ico sm")}Save to library</button>`}
+    </div>
+  </div>`;
+}
+function previewHTML(){
+  const d = ADD.data;
+  return `
+  <div class="preview" data-od-id="url-preview">
+    <span class="plate" data-t="${d.type}"><span class="frame"></span><b>${esc(d.mono)}</b><i>${TYPE_LABEL[d.type]}</i></span>
+    <span>
+      <span class="caps">${esc(d.pub)} · ${mlabel(d.mins)}</span>
+      <h4 style="margin-top:7px">${esc(d.title)}</h4>
+      <p style="margin:8px 0 0;font-size:13px;color:var(--muted);line-height:1.55">${esc(d.excerpt)}</p>
+      <span style="display:flex;gap:9px;margin-top:14px;font-size:12.5px;color:var(--muted);align-items:center">
+        ${ico("check","ico sm")}Readable copy extracted · ${esc(d.author)}</span>
+    </span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px">
+    <div><label class="lbl" for="addColl">Collection</label>
+      <select class="inp" id="addColl" style="width:100%">
+        <option value="">Inbox only</option>
+        ${S.colls.map(c=>`<option value="${c.id}"${ADD.coll===c.id?" selected":""}>${esc(c.name)}</option>`).join("")}
+      </select></div>
+    <div><label class="lbl" for="addTags">Tags</label>
+      <input class="inp" id="addTags" value="${esc(ADD.tags)}" placeholder="urbanism, transit"></div>
+  </div>`;
+}
+function openAdd(){ ADD = {tab:"url", phase:"idle", url:"", data:null, coll:"", tags:"", dupId:null}; openModal(addModalHTML()); }
+function refreshAdd(){ $("#modalHost").innerHTML = addModalHTML(); const f=$("#modalHost").querySelector("[data-autofocus]"); if(f){f.focus(); f.selectionStart=f.value.length;} }
+
+function doFetch(){
+  const input = $("#addUrl");
+  ADD.url = (input ? input.value : ADD.url).trim().replace(/^https?:\/\//,"");
+  if(!ADD.url){ toast("Paste an address first"); return; }
+  const dup = S.items.find(i=>i.url && i.url.toLowerCase()===ADD.url.toLowerCase());
+  ADD.phase = "loading"; refreshAdd();
+  setTimeout(()=>{
+    if(dup){ ADD.phase="dup"; ADD.dupId=dup.id; }
+    else if(/paywall|locked/i.test(ADD.url)){ ADD.phase="error"; }
+    else {
+      const known = FETCHABLE[ADD.url.toLowerCase()];
+      ADD.data = known || inferFromUrl(ADD.url);
+      ADD.phase = "ready";
+    }
+    refreshAdd();
+  }, 1100);
+}
+function inferFromUrl(u){
+  const host = u.split("/")[0] || "unknown.example";
+  const slug = (u.split("/").slice(1).join(" ") || "Saved page").replace(/[-_]+/g," ");
+  const pub = host.split(".")[0].replace(/^\w/,c=>c.toUpperCase());
+  return {title: slug.replace(/\b\w/g,c=>c.toUpperCase()), author:"Unknown author", pub,
+    mono: pub.slice(0,2).toUpperCase(), type:"article", mins: 9,
+    excerpt:"Preview built from the page itself. Author wasn't declared in the markup — you can edit it after saving."};
+}
+function saveFromAdd(linkOnly){
+  if(ADD.tab==="note"){
+    const t = ($("#noteTitle")?.value || "").trim() || "Untitled note";
+    const b = ($("#noteBody")?.value || "").trim() || "No body yet.";
+    const it = {id:S.nextId++, title:t, author:"Nadia Albrecht", pub:"Personal note", mono:"NA", type:"note",
+      mins:Math.max(1,Math.round(b.split(/\s+/).length/200)), saved:new Date().toISOString().slice(0,10),
+      progress:0, status:"inbox", fav:false, coll:"", tags:[], url:"", excerpt:b};
+    S.items.unshift(it); closeModal();
+    toast("Note saved to Inbox", {label:"Open", fn:()=>go("reader",{id:it.id})});
+    go("library",{status:"inbox"}); return;
+  }
+  const d = linkOnly
+    ? {...inferFromUrl(ADD.url), title: inferFromUrl(ADD.url).title, excerpt:"Link saved without a readable copy. Opening it will take you to the original."}
+    : ADD.data;
+  if(!d) return;
+  const collId = $("#addColl")?.value || ADD.coll || "";
+  const tags = ($("#addTags")?.value || ADD.tags || "").split(",").map(s=>s.trim()).filter(Boolean);
+  const it = {id:S.nextId++, title:d.title, author:d.author, pub:d.pub, mono:d.mono, type:d.type, mins:d.mins,
+    saved:new Date().toISOString().slice(0,10), progress:0, status:"inbox", fav:false,
+    coll:collId, tags, url:ADD.url, excerpt:d.excerpt};
+  S.items.unshift(it);
+  closeModal();
+  const where = collId ? `Inbox and ${coll(collId).name}` : "Inbox";
+  toast(`Saved to ${where}`, {label:"Read now", fn:()=>go("reader",{id:it.id})});
+  go("library",{status:"inbox", coll:collId||null});
+}
+
+/* ============================================================ pickers */
+function openPicker(kind, ids){
+  const many = ids.length>1;
+  const body = kind==="tag"
+    ? `<label class="lbl" for="pickTag">Tag</label>
+       <input class="inp" id="pickTag" data-autofocus placeholder="A new or existing tag">
+       <div class="hintrow"><span class="caps">Existing</span>${allTags().map(t=>`<button class="chip tag" data-picktag="${esc(t)}">#${esc(t)}</button>`).join("")}</div>`
+    : `<div style="display:grid;gap:10px">${S.colls.map(c=>`
+        <button class="btn" style="justify-content:flex-start;width:100%;padding:14px 16px" data-pickcoll="${c.id}">
+          <span class="swatch" style="width:12px;height:12px;background:${c.tint}"></span>
+          <span style="font-weight:500">${esc(c.name)}</span>
+          <span style="margin-left:auto;color:var(--muted);font-size:12.5px">${S.items.filter(i=>i.coll===c.id).length}</span>
+        </button>`).join("")}
+        <button class="btn" style="justify-content:flex-start;width:100%;padding:14px 16px" data-pickcoll="">
+          ${ico("x","ico sm")}<span>Remove from any collection</span></button></div>`;
+  openModal(`
+  <div class="modal" role="dialog" aria-modal="true" aria-label="${kind==="tag"?"Add a tag":"Move to collection"}">
+    <div class="modal-head"><h3>${kind==="tag"?"Add a tag":"Move to collection"}</h3><span class="sp" style="flex:1"></span>
+      <button class="iconbtn" data-closemodal="1" aria-label="Close">${ico("x")}</button></div>
+    <div class="modal-body">
+      <p style="margin:0 0 18px;color:var(--muted);font-size:13px">${many?`${ids.length} items selected.`:`“${esc(item(ids[0]).title)}”`}</p>
+      ${body}
+    </div>
+    ${kind==="tag"?`<div class="modal-foot"><span class="sp"></span>
+      <button class="btn sm" data-closemodal="1">Cancel</button>
+      <button class="btn sm prime" data-applytag="1">Add tag</button></div>`:""}
+  </div>`);
+  PICK = {kind, ids};
+}
+let PICK = null;
+function applyTag(tag){
+  if(!tag) return;
+  PICK.ids.forEach(id=>{ const i=item(id); if(i && !i.tags.includes(tag)) i.tags.push(tag); });
+  closeModal(); S.sel.clear();
+  toast(`Tagged ${PICK.ids.length} item${PICK.ids.length===1?"":"s"} with #${tag}`);
+  rerender();
+}
+function applyColl(cid){
+  PICK.ids.forEach(id=>{ const i=item(id); if(i) i.coll = cid; });
+  const n = PICK.ids.length; closeModal(); S.sel.clear();
+  toast(cid ? `Moved ${n} item${n===1?"":"s"} into ${coll(cid).name}` : `Removed ${n} item${n===1?"":"s"} from their collection`);
+  rerender();
+}
+
+/* ============================================================ review mode */
+let REVIEW = 0;
+function openReview(){
+  const list = hlFiltered(); if(!list.length){ toast("No highlights to review"); return; }
+  REVIEW = 0; paintReview(list);
+}
+function paintReview(list){
+  const h = list[REVIEW]; const it = item(h.item);
+  openModal(`
+  <div class="modal wide" role="dialog" aria-modal="true" aria-label="Review highlights" data-od-id="review-mode">
+    <div class="modal-head"><h3>Review</h3>
+      <span class="count">${REVIEW+1} of ${list.length}</span><span class="sp" style="flex:1"></span>
+      <button class="iconbtn" data-closemodal="1" aria-label="Close review">${ico("x")}</button></div>
+    <div class="modal-body" style="padding:40px 44px">
+      <p class="review-q"><em style="font-style:normal;background:var(--hl-${h.color});padding:3px 5px;border-radius:2px;
+        box-decoration-break:clone;-webkit-box-decoration-break:clone">${esc(h.text)}</em></p>
+      ${h.note?`<p class="hl-note" style="margin-top:26px;font-size:15px">${esc(h.note)}</p>`:""}
+      <div class="hl-src" style="margin-top:30px">
+        <span>${esc(it?it.title:"")}</span><span class="dot">·</span><span>${esc(it?it.author:"")}</span>
+        ${h.tags.map(t=>`<span class="chip tag">#${esc(t)}</span>`).join("")}
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn sm" data-rev="-1" ${REVIEW===0?"disabled style=opacity:.45":""}>${ico("chevl","ico sm")}Previous</button>
+      <button class="btn sm" data-note="${h.id}">${ico("note","ico sm")}${h.note?"Edit note":"Add note"}</button>
+      <span class="sp"></span>
+      <button class="btn sm ghost" data-gohlpassage="${h.id}">Go to passage</button>
+      <button class="btn sm prime" data-rev="1" ${REVIEW===list.length-1?"disabled style=opacity:.45":""}>Next ${ico("chevr","ico sm")}</button>
+    </div>
+  </div>`);
+  REVIEW_LIST = list;
+}
+let REVIEW_LIST = [];
+
+/* ============================================================ collection editor */
+function openCollectionEditor(id){
+  const c = id ? coll(id) : null;
+  const tints = ["var(--hl-yellow)","var(--hl-sage)","var(--hl-blue)","var(--hl-blush)","var(--accent)","var(--muted)"];
+  openModal(`
+  <div class="modal" role="dialog" aria-modal="true" aria-label="${c?"Edit collection":"New collection"}">
+    <div class="modal-head"><h3>${c?"Edit collection":"New collection"}</h3><span class="sp" style="flex:1"></span>
+      <button class="iconbtn" data-closemodal="1" aria-label="Close">${ico("x")}</button></div>
+    <div class="modal-body">
+      <label class="lbl" for="cName">Name</label>
+      <input class="inp" id="cName" data-autofocus value="${c?esc(c.name):""}" placeholder="Books to Revisit">
+      <label class="lbl" for="cDesc" style="margin-top:18px">Description</label>
+      <textarea class="inp" id="cDesc" style="min-height:80px" placeholder="What belongs in here?">${c?esc(c.desc):""}</textarea>
+      <div class="hintrow" style="margin-top:18px"><span class="caps">Color</span>
+        ${tints.map((t,n)=>`<button class="chip" data-ctint="${t}" aria-pressed="${c?c.tint===t:n===0}">
+          <span class="swatch" style="background:${t}"></span></button>`).join("")}</div>
+    </div>
+    <div class="modal-foot"><span class="sp"></span>
+      <button class="btn sm" data-closemodal="1">Cancel</button>
+      <button class="btn sm prime" data-savecoll="${c?c.id:""}">${c?"Save changes":"Create collection"}</button></div>
+  </div>`);
+  CTINT = c ? c.tint : tints[0];
+}
+let CTINT = "var(--hl-yellow)";
+
+/* ============================================================ event wiring */
+document.addEventListener("click", e=>{
+  const t = e.target.closest("[data-nav],[data-open],[data-pick],[data-fav],[data-menu],[data-type],[data-status],[data-coll],[data-tagnav],[data-cleartag],[data-clearcoll],[data-clearall],[data-act],[data-bulk],[data-hl],[data-hlcolor],[data-hltag],[data-hlclear],[data-collopen],[data-colledit],[data-collfilter],[data-toc],[data-gohl],[data-gohlpassage],[data-theme],[data-setfont],[data-closemodal],[data-addtab],[data-paste],[data-fetch],[data-save],[data-savelink],[data-saveanyway],[data-retry],[data-opendup],[data-filepick],[data-note],[data-savenote],[data-delhl],[data-recolor],[data-picktag],[data-applytag],[data-pickcoll],[data-rev],[data-savecoll],[data-ctint],[data-q],[data-gclear],[data-noop],[data-rowtag],[data-rowmove],[data-rowarchive]");
+  if(!t){
+    if(!e.target.closest(".pop,.seltool")) closePops();
+    return;
+  }
+  const d = t.dataset;
+  if(d.noop!==undefined){ e.preventDefault(); toast("Opening the original source is out of scope for this prototype"); return; }
+  e.preventDefault();
+
+  /* navigation */
+  if(d.nav){ go(d.nav, d.status!==undefined ? {status:d.status, coll:null} : (d.nav==="library"?{status:"all",coll:null}:{})); return; }
+  if(d.open){ go("reader",{id:+d.open}); return; }
+  if(d.collopen){ go("collection",{id:d.collopen}); return; }
+  if(d.coll){ go("collection",{id:d.coll}); return; }
+  if(d.collfilter){ go("library",{status:"all", coll:d.collfilter}); return; }
+  if(d.tagnav){ S.lib.tag = d.tagnav; go("library",{status:"all", coll:null}); return; }
+  if(d.q){ S.gq = d.q; renderSearch(); return; }
+  if(d.gclear!==undefined){ S.gq=""; renderSearch(); return; }
+
+  /* library filters */
+  if(d.type){ S.lib.type = d.type; renderLibrary(); return; }
+  if(d.status!==undefined && !d.nav){ S.lib.status = d.status; S.lib.coll=null; renderLibrary(); renderRail(); return; }
+  if(d.cleartag!==undefined){ S.lib.tag=null; renderLibrary(); renderRail(); return; }
+  if(d.clearcoll!==undefined){ S.lib.coll=null; renderLibrary(); renderRail(); return; }
+  if(d.clearall!==undefined){ Object.assign(S.lib,{status:"all",type:"all",tag:null,coll:null,q:""}); renderLibrary(); renderRail(); return; }
+
+  /* item actions */
+  if(d.fav){ toggleFav(+d.fav); return; }
+  if(d.pick){
+    const id = +d.pick;
+    S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id);
+    S.view==="collection" ? renderCollectionDetail() : renderLibrary();
+    renderBulk(); return;
+  }
+  if(d.menu){
+    const i = item(+d.menu);
+    $("#menuPop").innerHTML = `
+      <button class="nav-item" data-open="${i.id}">${ico("doc")}Open in reader</button>
+      <button class="nav-item" data-fav="${i.id}">${ico("star")}${i.fav?"Remove from favorites":"Add to favorites"}</button>
+      <button class="nav-item" data-rowtag="${i.id}">${ico("tag")}Add a tag</button>
+      <button class="nav-item" data-rowmove="${i.id}">${ico("coll")}Move to collection</button>
+      <button class="nav-item" data-rowarchive="${i.id}">${ico("arch")}${i.status==="archived"?"Already archived":"Archive"}</button>`;
+    $("#menuPop").style.minWidth="236px";
+    placePop($("#menuPop"), t.getBoundingClientRect());
+    return;
+  }
+
+  /* highlights */
+  if(d.hl){ const h=S.highlights.find(x=>x.id===d.hl); if(h) go("reader",{id:h.item, hl:h.id}); return; }
+  if(d.gohl){ jumpToHighlight(d.gohl); return; }
+  if(d.gohlpassage){ const h=S.highlights.find(x=>x.id===d.gohlpassage); closeModal(); if(h) go("reader",{id:h.item, hl:h.id}); return; }
+  if(d.hlcolor){ S.hlFilter.color = S.hlFilter.color===d.hlcolor ? null : d.hlcolor; renderHighlights(); return; }
+  if(d.hltag){ S.hlFilter.tag = S.hlFilter.tag===d.hltag ? null : d.hltag; renderHighlights(); return; }
+  if(d.hlclear!==undefined){ S.hlFilter={color:null,coll:null,source:null,tag:null,q:""}; renderHighlights(); return; }
+
+  /* table of contents */
+  if(d.toc){
+    const h = document.getElementById(d.toc); if(!h) return;
+    const main=$("#main"), r=h.getBoundingClientRect(), mr=main.getBoundingClientRect();
+    main.scrollTop += r.top - mr.top - 84; return;
+  }
+
+  /* theme + reading defaults */
+  if(d.theme){ setTheme(d.theme); return; }
+  if(d.setfont){ S.reader.font=d.setfont; renderSettings(); return; }
+
+  /* modals */
+  if(d.closemodal!==undefined){ closeModal(); return; }
+  if(d.addtab){ ADD.tab=d.addtab; ADD.phase="idle"; refreshAdd(); return; }
+  if(d.paste){ ADD.url=d.paste; const el=$("#addUrl"); if(el) el.value=d.paste; doFetch(); return; }
+  if(d.fetch!==undefined){ doFetch(); return; }
+  if(d.retry!==undefined){ ADD.phase="idle"; refreshAdd(); setTimeout(doFetch,80); return; }
+  if(d.savelink!==undefined){ saveFromAdd(true); return; }
+  if(d.saveanyway!==undefined){ ADD.phase="loading"; refreshAdd();
+    setTimeout(()=>{ ADD.data = FETCHABLE[ADD.url.toLowerCase()] || inferFromUrl(ADD.url); ADD.phase="ready"; refreshAdd(); }, 700); return; }
+  if(d.opendup){ closeModal(); go("reader",{id:+d.opendup}); return; }
+  if(d.save!==undefined){ saveFromAdd(false); return; }
+  if(d.filepick!==undefined){ toast("File picking is out of scope for this prototype — try a URL or a note"); return; }
+
+  /* notes on highlights */
+  if(d.note){ openNoteEditor(d.note); return; }
+  if(d.recolor){
+    const id = $("[data-savenote]").dataset.savenote;
+    const h = S.highlights.find(x=>x.id===id); if(h){ h.color=d.recolor; openNoteEditor(id); applyRuntimeHighlights(); }
+    return;
+  }
+  if(d.savenote){
+    const h = S.highlights.find(x=>x.id===d.savenote);
+    h.note = $("#noteText").value.trim();
+    h.tags = $("#noteTags").value.split(",").map(s=>s.trim()).filter(Boolean);
+    closeModal(); applyRuntimeHighlights(); renderAnnot(); renderRail();
+    toast(h.note?"Note attached":"Highlight updated", {label:"See in Highlights", fn:()=>go("highlights")});
+    return;
+  }
+  if(d.delhl){
+    S.highlights = S.highlights.filter(x=>x.id!==d.delhl);
+    const mk = $(`mark.hl[data-id="${d.delhl}"]`);
+    if(mk) mk.replaceWith(document.createTextNode(mk.textContent));
+    closeModal(); renderAnnot(); renderRail(); toast("Highlight removed"); return;
+  }
+
+  /* pickers */
+  if(d.rowtag){ closePops(); openPicker("tag",[+d.rowtag]); return; }
+  if(d.rowmove){ closePops(); openPicker("coll",[+d.rowmove]); return; }
+  if(d.rowarchive){ closePops(); archiveItem(+d.rowarchive); return; }
+  if(d.picktag){ $("#pickTag").value = d.picktag; return; }
+  if(d.applytag!==undefined){ applyTag($("#pickTag").value.trim()); return; }
+  if(d.pickcoll!==undefined){ applyColl(d.pickcoll); return; }
+
+  /* bulk */
+  if(d.bulk){
+    const ids=[...S.sel];
+    if(d.bulk==="clear"){ S.sel.clear(); S.view==="collection"?renderCollectionDetail():renderLibrary(); return; }
+    if(!ids.length) return;
+    if(d.bulk==="tag") openPicker("tag", ids);
+    if(d.bulk==="move") openPicker("coll", ids);
+    if(d.bulk==="archive"){
+      const snapshot = ids.map(id=>({id, status:item(id).status, progress:item(id).progress}));
+      ids.forEach(id=>archiveItem(id,true)); S.sel.clear();
+      toast(`${ids.length} item${ids.length===1?"":"s"} archived`, {label:"Undo", fn(){
+        snapshot.forEach(s=>{ const i=item(s.id); i.status=s.status; i.progress=s.progress; }); toast("Put back"); rerender(); }});
+      rerender();
+    }
+    return;
+  }
+
+  /* review + collections */
+  if(d.rev){ REVIEW = Math.max(0, Math.min(REVIEW_LIST.length-1, REVIEW + (+d.rev))); paintReview(REVIEW_LIST); return; }
+  if(d.colledit){ openCollectionEditor(d.colledit); return; }
+  if(d.ctint){ CTINT=d.ctint; $$("[data-ctint]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.ctint===CTINT))); return; }
+  if(d.savecoll!==undefined){
+    const name=$("#cName").value.trim(), desc=$("#cDesc").value.trim();
+    if(!name){ toast("Give the collection a name"); return; }
+    if(d.savecoll){ Object.assign(coll(d.savecoll), {name, desc, tint:CTINT}); toast("Collection updated"); }
+    else { S.colls.push({id:"c"+(S.nextId++), name, desc, tint:CTINT, fav:false}); toast(`Created ${name}`); }
+    closeModal(); rerender(); return;
+  }
+
+  /* named actions */
+  switch(d.act){
+    case "open-add": openAdd(); break;
+    case "clearall": Object.assign(S.lib,{status:"all",type:"all",tag:null,coll:null,q:""}); renderLibrary(); renderRail(); break;
+    case "reader-back": go(S.prevView==="reader"?"library":S.prevView,{keepScroll:false}); break;
+    case "reader-archive": archiveItem(S.reader.id); if(S.view==="reader") renderReader({}); break;
+    case "reader-tag": openPicker("tag",[S.reader.id]); break;
+    case "reader-collect": openPicker("coll",[S.reader.id]); break;
+    case "review": openReview(); break;
+    case "new-collection": openCollectionEditor(null); break;
+    case "export": toast("Exported 6 highlights as Markdown"); break;
+  }
+});
+
+/* scrim click-away */
+$("#scrim").addEventListener("mousedown", e=>{ if(e.target.id==="scrim") closeModal(); });
+
+/* search + sort inputs */
+$("#libQ").addEventListener("input", e=>{ S.lib.q = e.target.value; renderLibrary(); });
+$("#libSort").addEventListener("change", e=>{ S.lib.sort = e.target.value; renderLibrary(); });
+$("#viewList").addEventListener("click", ()=>{ S.lib.layout="list"; S.sel.clear(); renderLibrary(); });
+$("#viewGrid").addEventListener("click", ()=>{ S.lib.layout="grid"; S.sel.clear(); renderLibrary(); });
+$("#hlQ").addEventListener("input", e=>{ S.hlFilter.q = e.target.value; renderHighlights(); });
+$("#gQ").addEventListener("input", e=>{ S.gq = e.target.value; renderSearch(); });
+document.addEventListener("change", e=>{
+  if(e.target.matches("[data-hlsrc]")){ S.hlFilter.source = e.target.value ? +e.target.value : null; renderHighlights(); }
+  if(e.target.matches("[data-hlcoll]")){ S.hlFilter.coll = e.target.value || null; renderHighlights(); }
+});
+document.addEventListener("input", e=>{
+  if(e.target.matches("[data-setsize]")){ S.reader.size = +e.target.value; renderSettings(); }
+  if(e.target.matches("[data-setmeasure]")){ S.reader.measure = +e.target.value; renderSettings(); }
+  if(e.target.matches("[data-rsize]")){ S.reader.size=+e.target.value; applyReaderStyle(); }
+  if(e.target.matches("[data-rlead]")){ S.reader.lead=+e.target.value; applyReaderStyle(); }
+  if(e.target.matches("[data-rmeasure]")){ S.reader.measure=+e.target.value; applyReaderStyle(); }
+});
+function applyReaderStyle(){
+  const a=$("#articleBody"); if(!a) return;
+  a.style.setProperty("--read-size", S.reader.size+"px");
+  a.style.setProperty("--read-lead", S.reader.lead);
+  a.dataset.font = S.reader.font;
+  $(".readcol").style.maxWidth = `calc(${S.reader.measure}ch + 88px)`;
+  const p=$("#displayPop");
+  if(!p.hidden){
+    p.querySelectorAll("[data-rval]").forEach(b=>{
+      const k=b.dataset.rval;
+      b.textContent = k==="size" ? S.reader.size+"px" : k==="lead" ? S.reader.lead.toFixed(2) : S.reader.measure+"ch";
+    });
+  }
+}
+
+/* display popover */
+$("#btnDisplay").addEventListener("click", e=>{
+  const p=$("#displayPop");
+  if(!p.hidden){ closePops(); return; }
+  p.innerHTML = `
+    <h4>Reading display</h4>
+    <div class="ctl"><label>Typeface</label>
+      <div class="seg" style="width:100%">
+        <button style="flex:1;width:auto" data-rfont="serif" aria-pressed="${S.reader.font==="serif"}">Newsreader</button>
+        <button style="flex:1;width:auto" data-rfont="sans" aria-pressed="${S.reader.font==="sans"}">Grotesk</button>
+      </div></div>
+    <div class="ctl"><label>Text size <b data-rval="size">${S.reader.size}px</b></label>
+      <input type="range" min="15" max="26" step="1" value="${S.reader.size}" data-rsize aria-label="Text size"></div>
+    <div class="ctl"><label>Line spacing <b data-rval="lead">${S.reader.lead.toFixed(2)}</b></label>
+      <input type="range" min="1.4" max="2.1" step="0.02" value="${S.reader.lead}" data-rlead aria-label="Line spacing"></div>
+    <div class="ctl"><label>Column width <b data-rval="measure">${S.reader.measure}ch</b></label>
+      <input type="range" min="48" max="86" step="1" value="${S.reader.measure}" data-rmeasure aria-label="Column width"></div>
+    <div class="ctl" style="margin-bottom:0"><label>Theme</label>
+      <div class="seg" style="width:100%">
+        <button style="flex:1;width:auto;gap:7px;display:flex;align-items:center;justify-content:center" data-theme="light"
+          aria-pressed="${document.documentElement.dataset.theme==="light"}">${ico("sun","ico sm")}Ivory</button>
+        <button style="flex:1;width:auto;gap:7px;display:flex;align-items:center;justify-content:center" data-theme="dark"
+          aria-pressed="${document.documentElement.dataset.theme==="dark"}">${ico("moon","ico sm")}Charcoal</button>
+      </div></div>`;
+  placePop(p, e.currentTarget.getBoundingClientRect());
+  $("#btnDisplay").setAttribute("aria-expanded","true");
+});
+$("#displayPop").addEventListener("click", e=>{
+  const b = e.target.closest("[data-rfont]"); if(!b) return;
+  S.reader.font = b.dataset.rfont; applyReaderStyle();
+  $$("[data-rfont]").forEach(x=>x.setAttribute("aria-pressed", String(x.dataset.rfont===S.reader.font)));
+});
+$("#btnPanel").addEventListener("click", ()=>{
+  const sh=$("#readerShell"), on = sh.dataset.panel==="1";
+  sh.dataset.panel = on ? "0" : "1";
+  $("#btnPanel").setAttribute("aria-pressed", String(!on));
+});
+
+/* selection toolbar + highlight clicks */
+document.addEventListener("mouseup", e=>{
+  if(S.view!=="reader") return;
+  if(e.target.closest(".seltool,.pop")) return;
+  setTimeout(()=>{
+    const sel = window.getSelection();
+    const body = $("#articleBody");
+    if(!sel || sel.isCollapsed || !body || !body.contains(sel.anchorNode)){ $("#selTool").hidden = true; return; }
+    const txt = sel.toString().trim();
+    if(txt.length < 3){ $("#selTool").hidden = true; return; }
+    const tool = $("#selTool");
+    tool.innerHTML = `
+      <button data-mk="yellow">${ico("hl","ico sm")}Highlight</button>
+      <span class="dots">${Object.keys(COLORS).map(c=>`<button data-mk="${c}" style="background:var(--hl-${c})" aria-label="Highlight in ${COLORS[c]}"></button>`).join("")}</span>
+      <span class="sepv"></span>
+      <button data-mknote="1">${ico("note","ico sm")}Add note</button>
+      <button data-mkcopy="1">${ico("copy","ico sm")}Copy</button>`;
+    tool.hidden = false;
+    const r = sel.getRangeAt(0).getBoundingClientRect();
+    const w = tool.offsetWidth;
+    tool.style.left = Math.max(12, Math.min(r.left + r.width/2 - w/2, innerWidth-w-12)) + "px";
+    tool.style.top = (r.top + scrollY - tool.offsetHeight - 10) + "px";
+  }, 10);
+});
+$("#selTool").addEventListener("mousedown", e=>e.preventDefault());
+$("#selTool").addEventListener("click", e=>{
+  const b = e.target.closest("[data-mk],[data-mknote],[data-mkcopy]"); if(!b) return;
+  if(b.dataset.mkcopy!==undefined){
+    const txt = window.getSelection().toString();
+    navigator.clipboard?.writeText(txt).catch(()=>{});
+    $("#selTool").hidden=true; toast("Passage copied"); return;
+  }
+  const wantNote = b.dataset.mknote!==undefined;
+  const h = newHighlightFromSelection(wantNote ? "yellow" : b.dataset.mk);
+  $("#selTool").hidden = true;
+  if(!h) return;
+  if(wantNote) openNoteEditor(h.id);
+  else toast("Highlighted", {label:"Add a note", fn:()=>openNoteEditor(h.id)});
+});
+document.addEventListener("click", e=>{
+  const mk = e.target.closest("mark.hl"); if(!mk) return;
+  const h = S.highlights.find(x=>x.id===mk.dataset.id); if(!h) return;
+  const p = $("#hlPop");
+  p.innerHTML = `
+    <h4>Highlight</h4>
+    <p style="margin:0 0 14px;font-family:var(--serif);font-size:15px;line-height:1.55;max-width:34ch">${esc(h.text)}</p>
+    ${h.note?`<p class="hl-note" style="margin:0 0 16px">${esc(h.note)}</p>`
+            :`<p style="margin:0 0 16px;font-size:13px;color:var(--muted)">No note on this one yet.</p>`}
+    <div class="hintrow" style="margin:0 0 16px">
+      ${Object.keys(COLORS).map(c=>`<button class="chip" data-setc="${c}" aria-pressed="${h.color===c}">
+        <span class="swatch" style="background:var(--hl-${c})"></span>${COLORS[c]}</button>`).join("")}</div>
+    <div style="display:flex;gap:9px">
+      <button class="btn sm prime" data-note="${h.id}">${ico("note","ico sm")}${h.note?"Edit note":"Add note"}</button>
+      <button class="btn sm ghost" data-delhl="${h.id}" aria-label="Delete highlight">${ico("trash","ico sm")}</button>
+    </div>`;
+  p.style.minWidth = "320px";
+  placePop(p, mk.getBoundingClientRect(), "left");
+});
+$("#hlPop").addEventListener("click", e=>{
+  const b = e.target.closest("[data-setc]"); if(!b) return;
+  const id = $("#hlPop [data-note]").dataset.note;
+  const h = S.highlights.find(x=>x.id===id);
+  h.color = b.dataset.setc; applyRuntimeHighlights(); renderAnnot();
+  $$("#hlPop [data-setc]").forEach(x=>x.setAttribute("aria-pressed", String(x.dataset.setc===h.color)));
+});
+
+/* scrolling + resize */
+$("#main").addEventListener("scroll", ()=>{ updateProgress(); if(!$("#selTool").hidden) $("#selTool").hidden=true;
+  if(!$("#hlPop").hidden) $("#hlPop").hidden=true; }, {passive:true});
+addEventListener("resize", closePops);
+
+/* keyboard */
+let chord = "";
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape"){ if(!$("#scrim").hidden) closeModal(); else closePops(); return; }
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  if(typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if(chord==="g"){ chord="";
+    if(k==="l"){ go("library",{status:"all",coll:null}); return; }
+    if(k==="h"){ go("highlights"); return; }
+    if(k==="c"){ go("collections"); return; }
+    if(k==="s"){ go("settings"); return; }
+  }
+  if(k==="g"){ chord="g"; setTimeout(()=>chord="", 900); return; }
+  if(k==="/"){ e.preventDefault(); go("search"); $("#gQ").focus(); return; }
+  if(k==="a"){ e.preventDefault(); openAdd(); return; }
+  if(k==="t"){ setTheme(document.documentElement.dataset.theme==="dark"?"light":"dark"); return; }
+  if(k==="?"){ go("settings"); return; }
+  if(S.view==="reader"){
+    if(k==="e"){ archiveItem(S.reader.id); renderReader({keepScroll:true}); return; }
+    if(k==="h"){ const h=newHighlightFromSelection("yellow"); if(h) toast("Highlighted", {label:"Add a note", fn:()=>openNoteEditor(h.id)}); return; }
+    if(k==="n"){ const mine=S.highlights.filter(x=>x.item===S.reader.id); if(mine[0]) openNoteEditor(mine[0].id); return; }
+  }
+});
+
+/* ============================================================ boot */
+function boot(){
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem("libra:nav")||"null"); }catch(e){}
+  try{ const th = localStorage.getItem("libra:theme"); if(th) document.documentElement.dataset.theme = th; }catch(e){}
+  const start = saved && saved.view ? saved.view : "home";
+  if(saved && saved.status) S.lib.status = saved.status;
+  if(saved && saved.id) S.reader.id = saved.id;
+  go(start);
+}
+
+/* ==== INTERACTIONS ==== */
+
+boot();
+</script>
+</body>
+</html>

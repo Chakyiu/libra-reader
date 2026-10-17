@@ -1,0 +1,1048 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Libra Reader — mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:oklch(0.979 0.003 85);
+  --surface:oklch(0.960 0.004 100);
+  --fg:oklch(0.205 0.013 76);
+  --muted:oklch(0.505 0.009 75);
+  --border:oklch(0.900 0.005 95);
+  --accent:oklch(0.514 0.083 29);
+  --accent-ink:oklch(0.985 0.003 85);
+  /* darkened accent for labels that sit on an accent tint */
+  --accent-text:oklch(0.455 0.088 29);
+  /* primary actions are ink, not accent — accent stays reserved for the mark and small indicators */
+  --primary:oklch(0.199 0.0155 76);
+  --primary-hover:oklch(0.290 0.016 76);
+  --primary-ink:oklch(0.979 0.003 85);
+  --err:oklch(0.505 0.175 16);
+  --warn:oklch(0.640 0.135 54);
+  --well:oklch(0.970 0.003 92);
+  --hl-yellow:oklch(0.925 0.080 96);
+  --hl-sage:oklch(0.908 0.044 152);
+  --hl-blue:oklch(0.908 0.040 238);
+  --hl-blush:oklch(0.908 0.042 10);
+  --shadow-pop:0 1px 2px color-mix(in oklab,var(--fg) 8%,transparent),0 14px 34px color-mix(in oklab,var(--fg) 14%,transparent);
+  --serif:"Newsreader","Iowan Old Style","Source Serif 4",Georgia,serif;
+  --sans:"Archivo",-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r-sm:8px; --r-md:14px;
+}
+[data-theme="dark"]{
+  --bg:oklch(0.198 0.005 75);
+  --surface:oklch(0.246 0.005 75);
+  --fg:oklch(0.932 0.005 85);
+  --muted:oklch(0.745 0.007 80);
+  --border:oklch(0.345 0.005 75);
+  --accent:oklch(0.730 0.075 38);
+  --accent-ink:oklch(0.185 0.012 40);
+  --accent-text:oklch(0.775 0.072 38);
+  --primary:oklch(0.730 0.075 38);
+  --primary-hover:oklch(0.790 0.072 38);
+  --primary-ink:oklch(0.185 0.012 40);
+  --err:oklch(0.700 0.150 20);
+  --warn:oklch(0.780 0.120 60);
+  --well:oklch(0.225 0.005 75);
+  --hl-yellow:oklch(0.47 0.072 96);
+  --hl-sage:oklch(0.44 0.046 152);
+  --hl-blue:oklch(0.44 0.044 248);
+  --hl-blush:oklch(0.45 0.050 10);
+  --shadow-pop:0 1px 2px rgba(0,0,0,.4),0 16px 36px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:var(--sans);font-size:15px;line-height:1.5;color:var(--fg);
+  background:oklch(0.905 0.004 95);display:grid;place-items:center;padding:28px;-webkit-font-smoothing:antialiased}
+[data-theme="dark"] body{background:oklch(0.140 0.004 75)}
+button{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
+input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.caps{font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.ico{width:21px;height:21px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ico.sm{width:17px;height:17px}
+
+/* device */
+.phone{position:relative;width:390px;height:844px;background:var(--bg);border-radius:46px;overflow:hidden;
+  border:1px solid color-mix(in oklab,var(--fg) 22%,transparent);box-shadow:0 40px 90px rgba(0,0,0,.26)}
+.statusbar{position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:flex-end;justify-content:space-between;
+  padding:0 30px 7px;font-size:13px;font-weight:600;z-index:40;pointer-events:none;
+  background:linear-gradient(var(--bg) 62%,transparent)}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:112px;height:30px;border-radius:16px;
+  background:oklch(0.140 0.004 75);z-index:41}
+.screenwrap{position:absolute;inset:52px 0 84px;overflow:auto;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){.screenwrap{scroll-behavior:auto}}
+.screen{display:none;padding:12px 22px 40px}
+.screen.on{display:block}
+.homebar{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:132px;height:5px;border-radius:3px;
+  background:color-mix(in oklab,var(--fg) 34%,transparent);z-index:45;pointer-events:none}
+
+/* bottom nav */
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:84px;z-index:38;display:grid;
+  grid-template-columns:repeat(5,1fr);align-items:start;padding:8px 6px 0;
+  background:color-mix(in oklab,var(--bg) 92%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--border)}
+.tab{display:grid;justify-items:center;gap:5px;padding:9px 4px;border-radius:12px;color:var(--muted);min-height:54px}
+.tab span{font-size:11.5px;font-weight:500;letter-spacing:.01em;line-height:1.2}
+.tab[aria-current="page"]{color:var(--accent)}
+.tab[aria-current="page"] span{font-weight:600}
+.fab{display:grid;place-items:center;width:52px;height:52px;border-radius:17px;justify-self:center;margin-top:-1px;
+  background:var(--primary);color:var(--primary-ink);
+  box-shadow:0 2px 0 color-mix(in oklab,var(--fg) 26%,transparent),0 8px 20px color-mix(in oklab,var(--primary) 36%,transparent)}
+.fab:active{transform:translateY(2px);box-shadow:none}
+
+/* shared bits */
+.appbar{display:flex;align-items:center;gap:12px;padding:6px 0 14px}
+.appbar h1{margin:0;font-family:var(--serif);font-size:28px;font-weight:600;letter-spacing:-.022em;line-height:1.2}
+.iconbtn{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;color:var(--muted)}
+.iconbtn:active{background:color-mix(in oklab,var(--fg) 9%,transparent)}
+.iconbtn.on{color:var(--accent)}
+.iconbtn.on svg{fill:currentColor}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:14px 18px;border-radius:var(--r-sm);
+  border:1px solid var(--border);background:var(--bg);font-size:14px;font-weight:500;line-height:1.2;min-height:48px}
+.btn.prime{background:var(--primary);color:var(--primary-ink);border-color:transparent;font-weight:600;
+  box-shadow:0 1px 0 color-mix(in oklab,var(--fg) 22%,transparent)}
+.btn.prime:active{transform:translateY(1px);box-shadow:none}
+.btn.wide{width:100%}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:10px 15px;border-radius:999px;line-height:1.2;
+  border:1px solid var(--border);background:var(--bg);font-size:13px;font-weight:500;color:var(--muted);min-height:40px}
+.chip.tag{border-style:dashed}
+.chip[aria-pressed="true"],.chip.on{background:color-mix(in oklab,var(--accent) 14%,transparent);
+  border-color:color-mix(in oklab,var(--accent) 36%,transparent);color:var(--accent-text);border-style:solid}
+.swatch{width:10px;height:10px;border-radius:3px;flex:none;border:1px solid color-mix(in oklab,var(--fg) 24%,transparent)}
+.field{display:flex;align-items:center;gap:11px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--well);color:var(--muted);min-height:50px}
+.field:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
+.field input{flex:1;min-width:0;border:0;background:none;outline:none;color:var(--fg);padding:0}
+.field input::placeholder{color:var(--muted)}
+.scroller{display:flex;gap:9px;overflow-x:auto;margin:0 -22px;padding:2px 22px 14px;scrollbar-width:none}
+.scroller::-webkit-scrollbar{display:none}
+
+/* bookplate */
+.plate{position:relative;border:1px solid var(--border);border-radius:6px;overflow:hidden;flex:none;padding:12px;
+  background:var(--pbg,var(--surface));display:grid;place-items:center;text-align:center}
+.plate .frame{position:absolute;inset:5px;border:1px solid color-mix(in oklab,var(--fg) 18%,transparent);border-radius:3px}
+.plate::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,color-mix(in oklab,var(--fg) 4%,transparent) 3px 4px)}
+.plate b{font-family:var(--serif);font-weight:500;line-height:1.1;color:color-mix(in oklab,var(--fg) 92%,transparent)}
+.plate[data-t="newsletter"]{--pbg:color-mix(in oklab,var(--hl-yellow) 55%,var(--surface))}
+.plate[data-t="pdf"]{--pbg:color-mix(in oklab,var(--hl-blush) 55%,var(--surface))}
+.plate[data-t="epub"]{--pbg:color-mix(in oklab,var(--hl-blue) 55%,var(--surface))}
+.plate[data-t="note"]{--pbg:color-mix(in oklab,var(--hl-sage) 55%,var(--surface))}
+
+/* library list */
+.item{position:relative;display:grid;grid-template-columns:58px minmax(0,1fr);gap:15px;align-items:start;
+  padding:18px 4px;border-bottom:1px solid var(--border);width:100%;text-align:left}
+.item:active{background:color-mix(in oklab,var(--fg) 5%,transparent)}
+.item .plate{width:58px;height:58px}
+.item .plate b{font-size:17px}
+.item h3{margin:0;font-family:var(--serif);font-size:18px;font-weight:500;line-height:1.3;letter-spacing:-.01em}
+.item .meta{display:block;margin-top:7px;font-size:12.5px;color:var(--muted);line-height:1.55}
+.item .prog{display:flex;align-items:center;gap:10px;margin-top:11px}
+.item .track{flex:1;height:3px;border-radius:2px;background:color-mix(in oklab,var(--fg) 14%,transparent);overflow:hidden}
+.item .fill{height:100%;background:var(--accent);border-radius:2px}
+.item .pct{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.hero{display:block;width:100%;text-align:left;border:1px solid var(--border);border-radius:var(--r-md);
+  padding:22px;background:var(--well);margin-bottom:8px}
+.hero .top{display:flex;gap:17px;align-items:center}
+.hero .plate{width:78px;height:96px}
+.hero .plate b{font-size:24px}
+.hero h2{margin:9px 0 0;font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.016em;line-height:1.25}
+.hero .prog{display:flex;align-items:center;gap:11px;margin-top:17px}
+.hero .track{flex:1;height:3px;border-radius:2px;background:color-mix(in oklab,var(--fg) 14%,transparent);overflow:hidden}
+.hero .fill{height:100%;background:var(--accent);border-radius:2px}
+.hero .pct{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.sec{margin-top:32px}
+.sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:13px}
+.sec-head h2{margin:0;font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.sec-head button{margin-left:auto;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:5px}
+
+/* highlight cards */
+.hcard{display:block;width:100%;text-align:left;border:1px solid var(--border);border-radius:var(--r-md);
+  padding:22px;margin-bottom:14px;background:var(--bg)}
+.hcard q{quotes:none;font-family:var(--serif);font-size:17px;line-height:1.6;display:block}
+.hcard q em{font-style:normal;padding:2px 4px;border-radius:3px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.hcard .note{margin:15px 0 0;padding-left:15px;border-left:2px solid color-mix(in oklab,var(--accent) 60%,transparent);
+  font-size:13.5px;color:var(--muted);font-style:italic;line-height:1.6}
+.hcard .src{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:17px;font-size:12.5px;color:var(--muted)}
+
+/* reader */
+#reader{padding:0}
+.readtop{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:4px;padding:8px 14px;
+  background:color-mix(in oklab,var(--bg) 92%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);
+  transition:transform .22s ease,opacity .22s ease}
+.readtop.hide{transform:translateY(-100%);opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.readtop{transition:none}}
+.readtop .sp{flex:1}
+.readprog{position:absolute;left:0;bottom:-1px;height:2px;background:var(--accent)}
+.rbody{padding:24px 24px 72px}
+.rhead{border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:28px}
+.rhead h1{font-family:var(--serif);font-size:30px;font-weight:600;letter-spacing:-.024em;line-height:1.18;margin:13px 0 0}
+.rhead .by{margin-top:15px;font-size:12.5px;color:var(--muted);line-height:1.7}
+.rhead .by a{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in oklab,var(--accent) 40%,transparent);padding-bottom:3px}
+.article{font-family:var(--read-font,var(--serif));font-size:var(--read-size,18px);line-height:var(--read-lead,1.74)}
+.article[data-font="sans"]{--read-font:var(--sans)}
+.article h2{font-family:var(--serif);font-size:1.3em;font-weight:600;letter-spacing:-.015em;line-height:1.28;margin:2em 0 .5em}
+.article p{margin:0 0 1.15em}
+.article p.drop::first-letter{font-size:3em;float:left;line-height:.84;padding:.06em .09em 0 0;font-weight:500}
+.article blockquote{margin:1.6em 0;padding-left:22px;border-left:2px solid var(--accent);font-style:italic;color:var(--muted)}
+mark.hl{background:var(--hl-yellow);color:var(--fg);padding:2px 4px;border-radius:3px;
+  box-decoration-break:clone;-webkit-box-decoration-break:clone;border-bottom:1.5px solid transparent}
+mark.hl[data-c="sage"]{background:var(--hl-sage)}
+mark.hl[data-c="blue"]{background:var(--hl-blue)}
+mark.hl[data-c="blush"]{background:var(--hl-blush)}
+mark.hl[data-note="1"]{border-bottom-color:color-mix(in oklab,var(--fg) 55%,transparent)}
+mark.hl.flash{animation:flash 1.5s ease}
+@keyframes flash{0%,55%{box-shadow:0 0 0 4px color-mix(in oklab,var(--accent) 42%,transparent)}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){mark.hl.flash{animation:none;outline:2px solid var(--accent)}}
+.endcap{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);display:grid;gap:13px;
+  font-family:var(--sans);font-size:13.5px;color:var(--muted);line-height:1.55}
+
+/* selection toolbar */
+.seltool{position:absolute;z-index:60;display:flex;align-items:center;gap:3px;padding:6px;border-radius:12px;
+  background:var(--fg);box-shadow:var(--shadow-pop)}
+.seltool[hidden]{display:none}
+.seltool button{display:flex;align-items:center;gap:7px;padding:11px 14px;border-radius:7px;color:var(--bg);
+  font-size:13px;font-weight:500;min-height:42px;line-height:1.2}
+.seltool .dots{display:flex;gap:7px;padding:0 8px}
+.seltool .dots button{width:22px;height:22px;min-height:0;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.5)}
+.seltool .sepv{width:1px;height:22px;background:color-mix(in oklab,var(--bg) 32%,transparent);margin:0 4px}
+
+/* sheets + toasts */
+.veil{position:absolute;inset:0;z-index:50;background:color-mix(in oklab,oklch(0.20 0.012 76) 48%,transparent)}
+.veil[hidden]{display:none}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:55;background:var(--bg);border-radius:22px 22px 0 0;
+  border-top:1px solid var(--border);box-shadow:var(--shadow-pop);max-height:82%;overflow:auto;
+  animation:slideup .26s cubic-bezier(.22,1,.36,1)}
+.sheet[hidden]{display:none}
+@keyframes slideup{from{transform:translateY(100%)}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+.grip{width:38px;height:4px;border-radius:3px;background:color-mix(in oklab,var(--fg) 24%,transparent);margin:11px auto 4px}
+.sheet-head{display:flex;align-items:center;gap:12px;padding:12px 22px 15px;border-bottom:1px solid var(--border)}
+.sheet-head h2{margin:0;font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:-.016em;line-height:1.3}
+.sheet-body{padding:24px 22px}
+.sheet-foot{display:flex;gap:11px;padding:18px 22px 30px;border-top:1px solid var(--border);background:var(--well)}
+.ctl{display:grid;gap:10px;margin-bottom:22px}
+.ctl label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+.ctl label b{color:var(--fg);font-family:var(--mono);font-size:12px;font-weight:500}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+.seg{display:flex;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;background:var(--bg)}
+.seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:13px 8px;
+  font-size:13px;font-weight:500;color:var(--muted);min-height:48px;line-height:1.2}
+.seg button+button{border-left:1px solid var(--border)}
+.seg button[aria-pressed="true"]{background:color-mix(in oklab,var(--accent) 14%,transparent);color:var(--accent-text);font-weight:600}
+.lbl{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:9px}
+.inp{width:100%;padding:15px 16px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--well);outline:none;line-height:1.4}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 16%,transparent)}
+textarea.inp{min-height:112px;resize:none}
+.optrow{display:flex;align-items:center;gap:14px;width:100%;padding:18px 4px;border-bottom:1px solid var(--border);text-align:left}
+.optrow .t{flex:1;min-width:0}
+.optrow b{display:block;font-size:14.5px;font-weight:500}
+.optrow span{display:block;font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+.snack{position:absolute;left:16px;right:16px;bottom:98px;z-index:58;display:flex;align-items:center;gap:12px;
+  padding:16px 16px 16px 20px;border-radius:14px;background:var(--fg);color:var(--bg);box-shadow:var(--shadow-pop);
+  font-size:13.5px;line-height:1.4;animation:rise .2s ease}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+@media (prefers-reduced-motion:reduce){.snack{animation:none}}
+.snack button{color:var(--bg);font-weight:600;text-decoration:underline;text-underline-offset:3px;padding:7px 9px}
+.empty{text-align:center;padding:60px 22px;border:1px dashed var(--border);border-radius:var(--r-md);margin-top:20px}
+.empty .mark{width:32px;height:32px;color:var(--muted);margin-bottom:14px}
+.empty h2{font-family:var(--serif);font-size:19px;font-weight:500;margin:0 0 9px;line-height:1.3}
+.empty p{margin:0 auto 20px;color:var(--muted);max-width:30ch;font-size:13.5px;line-height:1.6}
+
+.hint{max-width:390px;margin-top:22px;text-align:center;font-size:13px;color:oklch(0.405 0.008 75);line-height:1.65}
+[data-theme="dark"] .hint{color:oklch(0.745 0.007 80)}
+@media (max-width:460px){
+  body{padding:0;display:block;background:var(--bg)}
+  .phone{width:100%;height:100vh;border-radius:0;border:0;box-shadow:none}
+  .hint{display:none}
+}
+</style>
+</head>
+<body>
+
+<svg class="sr" aria-hidden="true"><defs>
+<symbol id="i-logo" viewBox="0 0 24 24"><path d="M12 7.2v12.1M8.3 20.8h7.4M12 7.2C10 5.6 6.6 5 3.4 5.5v9.4c3.2-.5 6.6.1 8.6 1.7M12 7.2c2-1.6 5.4-2.2 8.6-1.7v9.4c-3.2-.5-6.6.1-8.6 1.7M12 3.4v1.6"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.2 12 3.6l8.5 6.6V20a.8.8 0 0 1-.8.8h-4.4v-6.2H8.7v6.2H4.3a.8.8 0 0 1-.8-.8z"/></symbol>
+<symbol id="i-lib" viewBox="0 0 24 24"><path d="M4 4.5h4v15H4zM10 4.5h4v15h-4zM16.2 5.4l3.6.9-3.3 13.3-3.6-.9z"/></symbol>
+<symbol id="i-hl" viewBox="0 0 24 24"><path d="m13.4 4.6 6 6-7.6 7.6H5.8v-6z"/><path d="M4 21.2h16"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m15.6 15.6 4.2 4.2"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 4 2.5 5.1 5.6.8-4 4 .9 5.6-5-2.7-5 2.7 1-5.6-4.1-4 5.6-.8z"/></symbol>
+<symbol id="i-arch" viewBox="0 0 24 24"><path d="M3.6 4.6h16.8v3.8H3.6zM5.2 8.4v10.2a.8.8 0 0 0 .8.8h12a.8.8 0 0 0 .8-.8V8.4M9.8 12.4h4.4"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="m5.6 5.6 12.8 12.8M18.4 5.6 5.6 18.4"/></symbol>
+<symbol id="i-note" viewBox="0 0 24 24"><path d="M19.4 13.4V5.2a1.4 1.4 0 0 0-1.4-1.4H6a1.4 1.4 0 0 0-1.4 1.4v13.6A1.4 1.4 0 0 0 6 20.2h7"/><path d="M13 20.2v-5.4a1.4 1.4 0 0 1 1.4-1.4h5zM8 8.4h8M8 12h5"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.6" y="8.6" width="11" height="11" rx="1.5"/><path d="M15.4 5.6V5a1.4 1.4 0 0 0-1.4-1.4H5.8A1.4 1.4 0 0 0 4.4 5v8.2a1.4 1.4 0 0 0 1.4 1.4h.6"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13.9a3.6 3.6 0 0 0 5.4.4l2.6-2.6a3.6 3.6 0 1 0-5.1-5.1l-1.5 1.5"/><path d="M14 10.1a3.6 3.6 0 0 0-5.4-.4L6 12.3a3.6 3.6 0 1 0 5.1 5.1l1.5-1.5"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M4.6 15.4v3.4a1.4 1.4 0 0 0 1.4 1.4h12a1.4 1.4 0 0 0 1.4-1.4v-3.4M12 15.6V3.8M7.8 8 12 3.8 16.2 8"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.6 4.6 4.6L19 6.8"/></symbol>
+<symbol id="i-chevl" viewBox="0 0 24 24"><path d="m14.6 5.6-6.4 6.4 6.4 6.4"/></symbol>
+<symbol id="i-chevr" viewBox="0 0 24 24"><path d="m9.4 5.6 6.4 6.4-6.4 6.4"/></symbol>
+<symbol id="i-type" viewBox="0 0 24 24"><path d="M3.4 18.8 8.6 5.6l5.2 13.2M5.1 14.6h7M15.6 18.8l3.2-8.2 3.2 8.2M16.6 16.2h4.4"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.6v2.2M12 19.2v2.2M4.6 4.6 6.2 6.2M17.8 17.8l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.6 19.4 6.2 17.8M17.8 6.2l1.6-1.6"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.4 13.6A8.4 8.4 0 0 1 10.4 3.6a8.4 8.4 0 1 0 10 10z"/></symbol>
+<symbol id="i-coll" viewBox="0 0 24 24"><path d="M3.4 7.2A1.6 1.6 0 0 1 5 5.6h3.6l1.9 2.4H19a1.6 1.6 0 0 1 1.6 1.6v8.2A1.6 1.6 0 0 1 19 19.4H5a1.6 1.6 0 0 1-1.6-1.6z"/></symbol>
+<symbol id="i-filter" viewBox="0 0 24 24"><path d="M3.8 5.6h16.4l-6.4 7.4v6.2l-3.6-2.1V13z"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.8v4.8M12 16.1v.1"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M13.6 3.8H6.6a1.4 1.4 0 0 0-1.4 1.4v13.6a1.4 1.4 0 0 0 1.4 1.4h10.8a1.4 1.4 0 0 0 1.4-1.4V9.2z"/><path d="M13.6 3.8v5.4h5.2M8.4 13h7M8.4 16.4h4.6"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.6 6.6h14.8M9 6.6V4.8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1.8M6.4 6.6l.9 12.6a1 1 0 0 0 1 .9h7.4a1 1 0 0 0 1-.9l.9-12.6"/></symbol>
+</defs></svg>
+
+<div class="phone" data-od-id="phone-frame">
+  <div class="island" aria-hidden="true"></div>
+  <div class="statusbar" aria-hidden="true"><span id="clock">9:41</span><span>Libra</span></div>
+
+  <div class="screenwrap" id="scroller">
+    <!-- HOME -->
+    <section class="screen" id="home" data-od-id="mobile-home">
+      <header class="appbar">
+        <div style="flex:1">
+          <p class="caps" id="mDate" style="margin:0 0 6px">—</p>
+          <h1 id="mGreet">Good evening</h1>
+        </div>
+        <button class="iconbtn" data-act="theme" aria-label="Toggle theme" id="themeBtn"></button>
+      </header>
+      <div id="homeBody"></div>
+    </section>
+
+    <!-- LIBRARY -->
+    <section class="screen" id="library" data-od-id="mobile-library">
+      <header class="appbar"><h1 style="flex:1">Library</h1>
+        <button class="iconbtn" data-act="sheet-filter" aria-label="Filter and sort"><svg class="ico"><use href="#i-filter"/></svg></button>
+      </header>
+      <label class="field"><svg class="ico sm"><use href="#i-search"/></svg>
+        <span class="sr">Search the library</span>
+        <input id="mQ" type="search" placeholder="Search titles, authors, tags…"></label>
+      <div class="scroller" id="mChips" style="margin-top:14px"></div>
+      <p class="caps" id="mCount" style="margin:0 0 4px">—</p>
+      <div id="mList"></div>
+    </section>
+
+    <!-- HIGHLIGHTS -->
+    <section class="screen" id="highlights" data-od-id="mobile-highlights">
+      <header class="appbar"><h1 style="flex:1">Highlights</h1></header>
+      <label class="field"><svg class="ico sm"><use href="#i-search"/></svg>
+        <span class="sr">Search highlights</span>
+        <input id="mHQ" type="search" placeholder="Search passages and notes…"></label>
+      <div class="scroller" id="mHChips" style="margin-top:14px"></div>
+      <div id="mHList"></div>
+    </section>
+
+    <!-- SEARCH -->
+    <section class="screen" id="search" data-od-id="mobile-search">
+      <header class="appbar"><h1 style="flex:1">Search</h1></header>
+      <label class="field"><svg class="ico sm"><use href="#i-search"/></svg>
+        <span class="sr">Search everything</span>
+        <input id="mGQ" type="search" placeholder="Titles, text, highlights, notes"></label>
+      <div class="scroller" style="margin-top:14px">
+        <button class="chip" data-q="sidewalk">sidewalk</button>
+        <button class="chip" data-q="abstraction">abstraction</button>
+        <button class="chip" data-q="Asante">Asante</button>
+      </div>
+      <div id="mGRes"></div>
+    </section>
+
+    <!-- READER -->
+    <section class="screen" id="reader" data-od-id="mobile-reader">
+      <div class="readtop" id="readTop">
+        <button class="iconbtn" data-act="back" aria-label="Back to library"><svg class="ico"><use href="#i-chevl"/></svg></button>
+        <span class="sp"></span>
+        <button class="iconbtn" id="mFav" aria-pressed="false" aria-label="Favorite"><svg class="ico"><use href="#i-star"/></svg></button>
+        <button class="iconbtn" data-act="sheet-notes" aria-label="Annotations"><svg class="ico"><use href="#i-note"/></svg></button>
+        <button class="iconbtn" data-act="sheet-display" aria-label="Reading settings"><svg class="ico"><use href="#i-type"/></svg></button>
+        <button class="iconbtn" data-act="archive" aria-label="Archive"><svg class="ico"><use href="#i-arch"/></svg></button>
+        <div class="readprog" id="readProg" style="width:0%"></div>
+      </div>
+      <div class="rbody" id="readBody"></div>
+    </section>
+  </div>
+
+  <nav class="tabbar" aria-label="Primary">
+    <button class="tab" data-tab="home"><svg class="ico"><use href="#i-home"/></svg><span>Home</span></button>
+    <button class="tab" data-tab="library"><svg class="ico"><use href="#i-lib"/></svg><span>Library</span></button>
+    <button class="fab" data-act="sheet-add" aria-label="Add content"><svg class="ico"><use href="#i-plus"/></svg></button>
+    <button class="tab" data-tab="highlights"><svg class="ico"><use href="#i-hl"/></svg><span>Highlights</span></button>
+    <button class="tab" data-tab="search"><svg class="ico"><use href="#i-search"/></svg><span>Search</span></button>
+  </nav>
+
+  <div class="homebar" aria-hidden="true"></div>
+  <div class="seltool" id="selTool" role="toolbar" aria-label="Selection actions" hidden></div>
+  <div class="veil" id="veil" hidden></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></div>
+  <div id="snackHost"></div>
+</div>
+
+<p class="hint">Mobile companion to <strong>libra-reader.html</strong>. Open a library item, select a sentence to highlight it, attach a note, then find it under Highlights. Narrow the window below 460px to drop the device frame.</p>
+
+<template id="tpl-walk">
+<p class="drop">The intersection of Bellamy and Dockwell is, by any ordinary measure, a failure. It has four lanes in each direction, a refuge island the width of a filing cabinet, and a signal cycle that gives people on foot nineteen seconds to cross eighty-four feet of asphalt. Nobody designed it to be hostile. That is the uncomfortable part.</p>
+<p>I have spent two years reading the minutes. What they record is not malice but a quiet accumulation of locally reasonable decisions: a turning radius widened for a fire truck that comes twice a year, a crossing removed because the count of pedestrians using it was low, a lane added because a model said delay would otherwise rise in 2041.</p>
+<h2>The arithmetic of a crossing</h2>
+<p>Traffic engineering has a number for almost everything, and the numbers are mostly honest. The trouble is which quantities get counted. Vehicle delay is reported to two decimal places. Pedestrian delay is measured, when it is measured at all, as a letter grade nobody signs off on.</p>
+<p>So the asymmetry is not ideological. It is clerical. <mark class="hl" data-id="h1" data-c="yellow" data-note="1">A street that cannot be crossed on foot is not a street; it is a wall with traffic on it.</mark> The wall is invisible in the analysis because walls are not in the units.</p>
+<p>Ask what the counts were and you find the second trap. Pedestrian volumes are counted where people currently walk. If a crossing is unpleasant, few people use it; if few use it, the count is low; if the count is low, the crossing becomes a candidate for removal.</p>
+<h2>What the curb remembers</h2>
+<p>Streets keep records in their geometry. The tight corners of a pre-war grid were cut for carts and for people stepping off a curb without ceremony. The long sweeping curves of the postwar arterial were cut for a design vehicle: a notional truck, modelled, that must never slow down.</p>
+<blockquote>The design vehicle is not a truck. It is a decision about who the street is willing to inconvenience.</blockquote>
+<p>Once poured, concrete is an argument that is difficult to reopen. A signal timing plan can change on a Tuesday afternoon. A curb radius requires a capital project, a budget line, three rounds of consultation and a reason that is not simply "this is unpleasant." Comfort does not have a funding stream.</p>
+<h2>A street, eventually</h2>
+<p>I went back in March. The fourth crossing is still missing, but the cycle has quietly dropped to ninety seconds because a technician retimed the corridor and nobody objected. The difference is legible on the sidewalk: people stand nearer the curb, lean less, look up more.</p>
+<p>Most of the city will be repaired this way, if it is repaired at all — not by master plans but by a long sequence of people deciding, inside the ordinary bounds of their job, to count a different thing.</p>
+</template>
+
+<template id="tpl-feed">
+<p class="drop">There is a particular quality to the tiredness that follows an hour of scrolling, and it is not the tiredness of having read. Reading leaves residue. The feed leaves a kind of polished blankness.</p>
+<h2>The shape of the thing</h2>
+<p>A feed has no end, and that is usually described as its defining feature. The more important property is that it has no shape. A magazine has a back cover. A book has a weight in the hand that tells you how much is left.</p>
+<p><mark class="hl" data-id="h2" data-c="blush">The feed does not steal your attention. It rents it back to you, hourly.</mark> You are never denied the thing you came for. You are simply never told that you have finished.</p>
+<h2>Against the infinite</h2>
+<p>The alternative is not asceticism. It is edges — a reading queue with a visible bottom, a newsletter that arrives on Thursdays, a stack that can in principle be emptied. Finishing is a design feature, and we removed it on purpose.</p>
+</template>
+
+<script>
+const COLORS = {yellow:"Yellow", sage:"Sage", blue:"Blue", blush:"Blush"};
+const TYPE_LABEL = {article:"Article", newsletter:"Newsletter", pdf:"PDF", epub:"EPUB", note:"Note"};
+const COLLS = [
+  {id:"design", name:"Design & Creativity", tint:"var(--hl-blush)"},
+  {id:"tech", name:"Technology", tint:"var(--hl-blue)"},
+  {id:"revisit", name:"Books to Revisit", tint:"var(--hl-yellow)"},
+  {id:"growth", name:"Personal Growth", tint:"var(--hl-sage)"},
+  {id:"cities", name:"Cities & Streets", tint:"var(--accent)"}
+];
+const S = {
+  screen:"home", prev:"library", readId:1, q:"", hq:"", gq:"", filter:"all", collFilter:null,
+  reader:{font:"serif", size:18, lead:1.74},
+  items:[
+    {id:1,title:"The City That Forgot How to Walk",author:"Mireille Asante",pub:"Slow Transit",mono:"ST",type:"article",
+     mins:18,saved:"Mar 4",progress:62,status:"reading",fav:true,coll:"cities",tags:["urbanism"],body:"tpl-walk",
+     url:"slowtransit.example/the-city-that-forgot-how-to-walk",
+     excerpt:"How a street becomes uncrossable without anyone deciding to make it so."},
+    {id:2,title:"Against the Infinite Feed",author:"Jonas Keller",pub:"Greyscale",mono:"GS",type:"article",
+     mins:12,saved:"Mar 2",progress:100,status:"archived",fav:false,coll:"design",tags:["attention"],body:"tpl-feed",
+     url:"greyscale.example/against-the-infinite-feed",
+     excerpt:"Finishing is a design feature, and we removed it on purpose."},
+    {id:3,title:"Stocks, Flows, and the Art of Waiting",author:"Priya Raghunathan",pub:"The Commons Review",mono:"CR",
+     type:"article",mins:24,saved:"Feb 27",progress:41,status:"reading",fav:false,coll:"growth",tags:["systems"],
+     url:"commonsreview.example/stocks-flows-waiting",
+     excerpt:"Arguments about rates, disguised as arguments about levels."},
+    {id:4,title:"The Quiet Death of the Ground Floor",author:"Mireille Asante",pub:"Slow Transit",mono:"ST",
+     type:"newsletter",mins:9,saved:"Feb 24",progress:0,status:"inbox",fav:false,coll:"cities",tags:["urbanism"],
+     url:"slowtransit.example/ground-floor",
+     excerpt:"What a city loses when its street level stops being a room."},
+    {id:5,title:"The Long Now of Software Maintenance",author:"Rosalind Ngata",pub:"Fieldnote",mono:"FN",type:"epub",
+     mins:66,saved:"Feb 15",progress:23,status:"reading",fav:false,coll:"revisit",tags:["technology"],
+     url:"fieldnote.example/long-now-maintenance",
+     excerpt:"The only design discipline judged by what fails to happen."},
+    {id:6,title:"A Grammar of Shadows",author:"Beatriz Cardoso",pub:"Plinth Quarterly",mono:"PQ",type:"pdf",
+     mins:31,saved:"Feb 20",progress:100,status:"archived",fav:true,coll:"design",tags:["architecture"],
+     url:"plinthquarterly.example/grammar-of-shadows",
+     excerpt:"Reading a façade as a sentence about climate."},
+    {id:7,title:"On Not Finishing Books",author:"Jonas Keller",pub:"Greyscale",mono:"GS",type:"article",
+     mins:11,saved:"Feb 10",progress:0,status:"inbox",fav:true,coll:"growth",tags:["attention"],
+     url:"greyscale.example/on-not-finishing-books",
+     excerpt:"An abandoned book is a completed experiment, not a failure of discipline."}
+  ],
+  highlights:[
+    {id:"h1",item:1,color:"yellow",text:"A street that cannot be crossed on foot is not a street; it is a wall with traffic on it.",
+     note:"Open the talk with this.",tags:["urbanism"]},
+    {id:"h2",item:2,color:"blush",text:"The feed does not steal your attention. It rents it back to you, hourly.",note:"",tags:["attention"]},
+    {id:"h3",item:3,color:"sage",text:"A stock is just a flow that has learned patience.",
+     note:"Pairs with the municipal budget piece.",tags:["systems"]},
+    {id:"h4",item:5,color:"sage",text:"Maintenance is the only design discipline that is judged by what fails to happen.",note:"",tags:["systems"]}
+  ],
+  nextId:100, hlFilter:null
+};
+
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const item = id => S.items.find(i=>i.id===id);
+const coll = id => COLLS.find(c=>c.id===id);
+const ico = (n,cls="ico") => `<svg class="${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const mlabel = m => m>=60 ? `${Math.floor(m/60)} hr ${m%60} min` : `${m} min`;
+const plate = i => `<span class="plate" data-t="${i.type}" aria-hidden="true"><span class="frame"></span><b>${esc(i.mono)}</b></span>`;
+
+function snack(msg, action){
+  const host=$("#snackHost"); host.innerHTML="";
+  const el=document.createElement("div"); el.className="snack"; el.innerHTML=`<span style="flex:1">${esc(msg)}</span>`;
+  if(action){ const b=document.createElement("button"); b.textContent=action.label; b.onclick=()=>{action.fn(); el.remove();}; el.appendChild(b); }
+  const x=document.createElement("button"); x.setAttribute("aria-label","Dismiss");
+  x.style.cssText="display:grid;place-items:center;padding:7px"; x.innerHTML=ico("x","ico sm"); x.onclick=()=>el.remove();
+  el.appendChild(x); host.appendChild(el);
+  setTimeout(()=>el.remove(), action?8000:3600);
+}
+function openSheet(html){ $("#sheet").innerHTML = `<div class="grip"></div>`+html; $("#sheet").hidden=false; $("#veil").hidden=false;
+  const f=$("#sheet").querySelector("[data-autofocus]"); if(f) f.focus(); }
+function closeSheet(){ $("#sheet").hidden=true; $("#veil").hidden=true; $("#sheet").innerHTML=""; }
+function setTheme(t){ document.documentElement.dataset.theme=t; try{ localStorage.setItem("libra-m:theme",t); }catch(e){} }
+
+/* ============================================================ routing */
+function go(screen, opts={}){
+  if(screen==="reader" && opts.id) S.readId = opts.id;
+  if(screen==="reader" && S.screen!=="reader") S.prev = S.screen;
+  S.screen = screen;
+  $$(".screen").forEach(s=>s.classList.toggle("on", s.id===screen));
+  $$(".tab").forEach(t=>t.dataset.tab===screen ? t.setAttribute("aria-current","page") : t.removeAttribute("aria-current"));
+  if(screen==="home") renderHome();
+  if(screen==="library") renderLibrary();
+  if(screen==="highlights") renderHighlights();
+  if(screen==="search") renderSearch();
+  if(screen==="reader") renderReader(opts);
+  if(!opts.keepScroll) $("#scroller").scrollTop = 0;
+  $("#readTop").classList.remove("hide");
+  closeSheet();
+  try{ localStorage.setItem("libra-m:nav", JSON.stringify({screen, id:S.readId})); }catch(e){}
+}
+
+/* ============================================================ home */
+function renderHome(){
+  const now=new Date(), h=now.getHours();
+  $("#mDate").textContent = now.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+  $("#mGreet").textContent = (h<5?"Still up":h<12?"Good morning":h<18?"Good afternoon":"Good evening")+", Nadia";
+  const dark = document.documentElement.dataset.theme==="dark";
+  $("#themeBtn").innerHTML = ico(dark?"sun":"moon");
+  $("#themeBtn").setAttribute("aria-label", dark?"Switch to the ivory theme":"Switch to the charcoal theme");
+
+  const cont = S.items.filter(i=>i.status==="reading"&&i.progress>0).sort((a,b)=>b.progress-a.progress)[0];
+  const recent = S.items.filter(i=>i.status!=="archived").slice(0,3);
+  const hl = S.highlights.find(x=>x.note) || S.highlights[0];
+  $("#homeBody").innerHTML = `
+    <section class="sec" style="margin-top:14px"><div class="sec-head"><h2>Continue reading</h2></div>
+      ${cont?`<button class="hero" data-open="${cont.id}" data-od-id="mobile-continue">
+        <span class="top">${plate(cont)}
+          <span style="min-width:0">
+            <span class="caps">${esc(cont.pub)}</span>
+            <h2>${esc(cont.title)}</h2>
+          </span></span>
+        <span class="prog"><span class="track"><span class="fill" style="width:${cont.progress}%"></span></span>
+          <span class="pct">${cont.progress}% · ${Math.max(1,Math.round(cont.mins*(100-cont.progress)/100))} min left</span></span>
+      </button>`:`<div class="empty"><h2>Nothing part-read</h2><p>Start something from the inbox.</p></div>`}
+    </section>
+
+    <section class="sec"><div class="sec-head"><h2>Recently saved</h2><button data-tab="library">All</button></div>
+      ${recent.map(itemHTML).join("")}
+    </section>
+
+    <section class="sec"><div class="sec-head"><h2>Revisit a highlight</h2><button data-tab="highlights">All</button></div>
+      ${hl?hcardHTML(hl):""}
+    </section>
+
+    <section class="sec"><div class="sec-head"><h2>Collections</h2></div>
+      <div class="scroller">${COLLS.map(c=>{
+        const n=S.items.filter(i=>i.coll===c.id).length;
+        return `<button class="chip" data-coll="${c.id}"><span class="swatch" style="background:${c.tint}"></span>${esc(c.name)} · ${n}</button>`;
+      }).join("")}</div>
+    </section>`;
+}
+
+function itemHTML(i){
+  return `<div class="item" data-od-id="mobile-item-${i.id}">
+    <button style="display:contents" data-open="${i.id}" aria-label="Open ${esc(i.title)}">
+      ${plate(i)}
+      <span>
+        <h3>${esc(i.title)}</h3>
+        <span class="meta">${esc(i.author)} · ${TYPE_LABEL[i.type]} · ${mlabel(i.mins)}<br>Saved ${esc(i.saved)}${i.status==="archived"?" · Archived":""}</span>
+        ${i.progress>0?`<span class="prog"><span class="track"><span class="fill" style="width:${i.progress}%"></span></span>
+          <span class="pct">${i.progress===100?"Done":i.progress+"%"}</span></span>`:""}
+      </span>
+    </button>
+  </div>`;
+}
+
+function hcardHTML(h){
+  const it = item(h.item);
+  return `<button class="hcard" data-hl="${h.id}" data-od-id="mobile-highlight-${h.id}">
+    <q><em style="background:var(--hl-${h.color})">${esc(h.text)}</em></q>
+    ${h.note?`<p class="note">${esc(h.note)}</p>`:""}
+    <span class="src">
+      <span class="chip"><span class="swatch" style="background:var(--hl-${h.color})"></span>${COLORS[h.color]}</span>
+      <span>${esc(it?it.title:"")}</span>
+      ${h.tags.map(t=>`<span class="chip tag">#${esc(t)}</span>`).join("")}
+      <span style="margin-left:auto;display:inline-flex;gap:5px;align-items:center;color:var(--accent)">Passage ${ico("chevr","ico sm")}</span>
+    </span>
+  </button>`;
+}
+
+/* ============================================================ library */
+function libList(){
+  return S.items.filter(i=>{
+    if(S.collFilter && i.coll!==S.collFilter) return false;
+    if(S.filter==="fav" && !i.fav) return false;
+    if(S.filter!=="all" && S.filter!=="fav" && i.status!==S.filter) return false;
+    if(S.filter==="all" && i.status==="archived") return false;
+    if(S.q && !(i.title+" "+i.author+" "+i.pub+" "+i.tags.join(" ")).toLowerCase().includes(S.q.toLowerCase())) return false;
+    return true;
+  });
+}
+function renderLibrary(){
+  const list = libList();
+  $("#mQ").value = S.q;
+  const c = S.collFilter ? coll(S.collFilter) : null;
+  $("#mChips").innerHTML =
+    (c?`<button class="chip on" data-clearcoll="1" aria-label="Clear the ${esc(c.name)} filter">
+        <span class="swatch" style="background:${c.tint}"></span>${esc(c.name)}${ico("x","ico sm")}</button>`:"") +
+    [["all","All"],["inbox","Inbox"],["reading","Reading"],["archived","Archived"],["fav","Favorites"]]
+    .map(([k,l])=>`<button class="chip" data-filter="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join("");
+  $("#mCount").textContent = `${list.length} document${list.length===1?"":"s"}${c?" in "+c.name:""}`;
+  $("#mList").innerHTML = list.length ? list.map(itemHTML).join("")
+    : `<div class="empty" data-od-id="mobile-library-empty">${ico("logo","mark ico")}
+       <h2>Nothing here yet</h2>
+       <p>${c?`“${esc(c.name)}” has nothing in this view yet.`:"Nothing matches this view. Try another filter, or save something new."}</p>
+       <button class="btn prime" data-act="sheet-add">${ico("plus","ico sm")}Add content</button></div>`;
+}
+
+/* ============================================================ highlights */
+function renderHighlights(){
+  const q = S.hq.toLowerCase();
+  const list = S.highlights.filter(h=>{
+    if(S.hlFilter && h.color!==S.hlFilter) return false;
+    if(!q) return true;
+    const it=item(h.item);
+    return (h.text+" "+h.note+" "+(it?it.title+" "+it.author:"")).toLowerCase().includes(q);
+  });
+  $("#mHQ").value = S.hq;
+  $("#mHChips").innerHTML = Object.keys(COLORS).map(c=>
+    `<button class="chip" data-hcolor="${c}" aria-pressed="${S.hlFilter===c}">
+      <span class="swatch" style="background:var(--hl-${c})"></span>${COLORS[c]}</button>`).join("");
+  $("#mHList").innerHTML = list.length ? list.map(hcardHTML).join("")
+    : `<div class="empty">${ico("hl","mark ico")}<h2>No highlights match</h2>
+       <p>Clear the filter, or open something and mark a passage.</p>
+       <button class="btn" data-act="clear-hl">Clear filter</button></div>`;
+}
+
+/* ============================================================ search */
+function renderSearch(){
+  const q = S.gq.trim().toLowerCase();
+  $("#mGQ").value = S.gq;
+  const host = $("#mGRes");
+  if(!q){ host.innerHTML = `<div class="empty" style="border:0">${ico("search","mark ico")}
+    <h2>Search everything</h2><p>Titles, authors, document text, highlights, and your notes.</p></div>`; return; }
+  const body = i => { const t=i.body?$("#"+i.body):null; return t?t.textContent.replace(/\s+/g," ").trim():i.excerpt; };
+  const docs = S.items.filter(i=>(i.title+" "+i.author+" "+i.pub).toLowerCase().includes(q));
+  const text = S.items.filter(i=>!docs.includes(i) && body(i).toLowerCase().includes(q));
+  const hls = S.highlights.filter(h=>(h.text+" "+h.note).toLowerCase().includes(q));
+  if(!docs.length && !text.length && !hls.length){
+    host.innerHTML = `<div class="empty">${ico("search","mark ico")}<h2>No results for “${esc(S.gq)}”</h2>
+      <p>Nothing in titles, text, highlights, or notes. Try a single word.</p>
+      <button class="btn" data-act="clear-search">Clear search</button></div>`; return;
+  }
+  const snip = t => { const i=t.toLowerCase().indexOf(q); if(i<0) return esc(t.slice(0,110));
+    const s=Math.max(0,i-40); return (s>0?"… ":"")+esc(t.slice(s,i))+"<strong>"+esc(t.slice(i,i+q.length))+"</strong>"+esc(t.slice(i+q.length,i+q.length+70))+" …"; };
+  const grp = (label,n,inner)=> n?`<section class="sec"><div class="sec-head"><h2>${label} · ${n}</h2></div>${inner}</section>`:"";
+  host.innerHTML =
+    grp("Documents", docs.length, docs.map(itemHTML).join("")) +
+    grp("In document text", text.length, text.map(i=>`<button class="hcard" data-open="${i.id}">
+      <q style="font-size:15px">${snip(body(i))}</q>
+      <span class="src">${ico("doc","ico sm")}${esc(i.title)}</span></button>`).join("")) +
+    grp("Highlights", hls.length, hls.map(hcardHTML).join(""));
+}
+
+/* ============================================================ reader */
+function renderReader(opts={}){
+  const i = item(S.readId);
+  $("#mFav").setAttribute("aria-pressed", String(i.fav));
+  $("#mFav").classList.toggle("on", i.fav);
+  const tpl = i.body ? $("#"+i.body) : null;
+  const bodyHTML = tpl ? tpl.innerHTML : `<p class="drop">${esc(i.excerpt)}</p>
+    <div class="empty" style="text-align:left;padding:22px">${ico("alert","mark ico")}
+      <h2>Full text not included</h2><p style="max-width:none">This document's body isn't part of the sample data. Highlighting is wired on the two articles that are.</p></div>`;
+  $("#readBody").innerHTML = `
+    <article class="article" id="articleBody" data-font="${S.reader.font}"
+      style="--read-size:${S.reader.size}px;--read-lead:${S.reader.lead}">
+      <header class="rhead">
+        <span class="caps">${TYPE_LABEL[i.type]} · ${mlabel(i.mins)}</span>
+        <h1>${esc(i.title)}</h1>
+        <p class="by">${esc(i.author)} · ${esc(i.pub)}<br><a href="#" data-noop="1">${esc(i.url)}</a></p>
+      </header>
+      ${bodyHTML}
+      <div class="endcap">
+        <span>You're at the end of this ${TYPE_LABEL[i.type].toLowerCase()}.</span>
+        ${i.status==="archived" ? `<span class="chip on" style="justify-self:start">${ico("check","ico sm")}Archived</span>`
+          : `<button class="btn prime wide" data-act="archive">${ico("arch","ico sm")}Archive it</button>`}
+        <button class="btn wide" data-act="back">Back to library</button>
+      </div>
+    </article>`;
+  applyRuntime();
+  updateProgress();
+  if(opts.hl) requestAnimationFrame(()=>jumpTo(opts.hl));
+}
+function applyRuntime(){
+  const root=$("#articleBody"); if(!root) return;
+  S.highlights.filter(h=>h.item===S.readId).forEach(h=>{
+    let mk = root.querySelector(`mark.hl[data-id="${h.id}"]`);
+    if(!mk && h.created){
+      const b = [...root.querySelectorAll("p,blockquote")].find(p=>p.textContent.includes(h.text) && !p.querySelector("mark.hl"));
+      if(b){ b.innerHTML = b.innerHTML.replace(esc(h.text), `<mark class="hl" data-id="${h.id}" data-c="${h.color}">${esc(h.text)}</mark>`);
+        mk = root.querySelector(`mark.hl[data-id="${h.id}"]`); }
+    }
+    if(mk){ mk.dataset.c=h.color; h.note?mk.setAttribute("data-note","1"):mk.removeAttribute("data-note"); }
+  });
+}
+function updateProgress(){
+  if(S.screen!=="reader") return;
+  const sc=$("#scroller"), max=sc.scrollHeight-sc.clientHeight;
+  const pct = max>0 ? Math.min(100, Math.round(sc.scrollTop/max*100)) : 0;
+  $("#readProg").style.width = pct+"%";
+  const i=item(S.readId);
+  if(i && i.body && pct>i.progress){ i.progress=pct; if(i.status==="inbox") i.status="reading"; }
+}
+function jumpTo(id){
+  const mk=$(`mark.hl[data-id="${id}"]`); if(!mk) return;
+  const sc=$("#scroller"), r=mk.getBoundingClientRect(), sr=sc.getBoundingClientRect();
+  sc.scrollTop += r.top - sr.top - sc.clientHeight*0.3;
+  mk.classList.remove("flash"); void mk.offsetWidth; mk.classList.add("flash");
+}
+
+/* ============================================================ sheets */
+function sheetDisplay(){
+  const dark = document.documentElement.dataset.theme==="dark";
+  openSheet(`
+    <div class="sheet-head"><h2>Reading</h2><span style="flex:1"></span>
+      <button class="iconbtn" data-act="close" aria-label="Close">${ico("x")}</button></div>
+    <div class="sheet-body">
+      <div class="ctl"><label>Typeface</label>
+        <div class="seg">
+          <button data-rfont="serif" aria-pressed="${S.reader.font==="serif"}">Newsreader</button>
+          <button data-rfont="sans" aria-pressed="${S.reader.font==="sans"}">Grotesk</button>
+        </div></div>
+      <div class="ctl"><label>Text size <b data-v="size">${S.reader.size}px</b></label>
+        <input type="range" min="15" max="24" step="1" value="${S.reader.size}" data-rsize aria-label="Text size"></div>
+      <div class="ctl"><label>Line spacing <b data-v="lead">${S.reader.lead.toFixed(2)}</b></label>
+        <input type="range" min="1.45" max="2.1" step="0.02" value="${S.reader.lead}" data-rlead aria-label="Line spacing"></div>
+      <div class="ctl" style="margin-bottom:0"><label>Theme</label>
+        <div class="seg">
+          <button data-settheme="light" aria-pressed="${!dark}">${ico("sun","ico sm")} Ivory</button>
+          <button data-settheme="dark" aria-pressed="${dark}">${ico("moon","ico sm")} Charcoal</button>
+        </div></div>
+    </div>`);
+}
+function sheetNotes(){
+  const mine = S.highlights.filter(h=>h.item===S.readId);
+  const i = item(S.readId);
+  openSheet(`
+    <div class="sheet-head"><h2>Annotations</h2><span class="caps">${mine.length}</span><span style="flex:1"></span>
+      <button class="iconbtn" data-act="close" aria-label="Close">${ico("x")}</button></div>
+    <div class="sheet-body">
+      ${mine.length ? mine.map(h=>`
+        <button class="hcard" style="margin-bottom:12px" data-gohl="${h.id}">
+          <q style="font-size:16px"><em style="background:var(--hl-${h.color})">${esc(h.text)}</em></q>
+          ${h.note?`<p class="note">${esc(h.note)}</p>`:`<p class="note" style="opacity:.85">No note yet — tap to add one</p>`}
+        </button>`).join("")
+      : `<p style="color:var(--muted);font-size:13.5px;line-height:1.65;margin:0 0 20px">
+         Select any sentence in the article to highlight it. Notes you attach land here and in the Highlights tab.</p>`}
+      <div style="font-size:13px;color:var(--muted);line-height:1.95;border-top:1px solid var(--border);padding-top:18px">
+        <div>Saved ${esc(i.saved)} · ${TYPE_LABEL[i.type]}</div>
+        <div>Collection: ${esc(coll(i.coll)?.name||"None")}</div>
+        <div>Status: ${i.status==="inbox"?"In inbox":i.status==="reading"?"Reading":"Archived"}</div>
+      </div>
+    </div>`);
+}
+function sheetNote(hlId){
+  const h = S.highlights.find(x=>x.id===hlId);
+  openSheet(`
+    <div class="sheet-head">
+      <span class="swatch" style="width:14px;height:14px;background:var(--hl-${h.color})"></span>
+      <h2>${h.note?"Edit note":"Add a note"}</h2><span style="flex:1"></span>
+      <button class="iconbtn" data-act="close" aria-label="Close">${ico("x")}</button></div>
+    <div class="sheet-body">
+      <blockquote style="margin:0 0 20px;padding:16px 18px;border-left:3px solid var(--hl-${h.color});background:var(--well);
+        border-radius:0 8px 8px 0;font-family:var(--serif);font-size:16px;line-height:1.6">${esc(h.text)}</blockquote>
+      <label class="lbl" for="nText">Your note</label>
+      <textarea class="inp" id="nText" data-autofocus placeholder="What made this worth keeping?">${esc(h.note)}</textarea>
+      <div class="scroller" style="margin:16px -22px 0;padding:2px 22px 4px">
+        ${Object.keys(COLORS).map(c=>`<button class="chip" data-nc="${c}" aria-pressed="${h.color===c}">
+          <span class="swatch" style="background:var(--hl-${c})"></span>${COLORS[c]}</button>`).join("")}</div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn" data-delhl="${h.id}" aria-label="Delete highlight">${ico("trash","ico sm")}</button>
+      <button class="btn prime" style="flex:1" data-savenote="${h.id}">Save note</button>
+    </div>`);
+}
+let ADD = {tab:"url", phase:"idle", url:"", data:null, dupId:null};
+const FETCHABLE = {"slowtransit.example/the-crosswalk-tax":{title:"The Crosswalk Tax",author:"Mireille Asante",
+  pub:"Slow Transit",mono:"ST",type:"article",mins:14,excerpt:"What a city charges people, in minutes, for the right to get to the other side."}};
+function sheetAdd(){
+  const t = ADD.tab;
+  let body = "";
+  if(t==="url"){
+    body = `
+      <label class="lbl" for="aUrl">Address</label>
+      <input class="inp" id="aUrl" data-autofocus value="${esc(ADD.url)}" placeholder="slowtransit.example/an-article">
+      <div class="scroller" style="margin:14px -22px 0;padding:2px 22px 4px">
+        <span class="caps" style="align-self:center;white-space:nowrap">Recently copied</span>
+        <button class="chip" data-paste="slowtransit.example/the-crosswalk-tax">${ico("link","ico sm")}the-crosswalk-tax</button>
+        <button class="chip" data-paste="plinthquarterly.example/paywall-notes">${ico("link","ico sm")}paywall-notes</button>
+        <button class="chip" data-paste="slowtransit.example/the-city-that-forgot-how-to-walk">${ico("link","ico sm")}the-city-that-forgot…</button>
+      </div>
+      ${ADD.phase==="loading"?`<div class="empty" style="padding:32px 22px;margin-top:18px" aria-live="polite">
+        <p style="margin:0;max-width:none">Fetching the page and stripping the furniture…</p></div>`:""}
+      ${ADD.phase==="ready"?`
+        <div style="display:grid;grid-template-columns:72px 1fr;gap:16px;padding:18px;border:1px solid var(--border);
+          border-radius:12px;background:var(--well);margin-top:18px">
+          <span class="plate" data-t="article" style="width:72px;height:72px"><span class="frame"></span><b>${esc(ADD.data.mono)}</b></span>
+          <span><span class="caps">${esc(ADD.data.pub)} · ${mlabel(ADD.data.mins)}</span>
+            <strong style="display:block;font-family:var(--serif);font-size:17px;font-weight:500;margin-top:7px;line-height:1.3">${esc(ADD.data.title)}</strong>
+            <span style="display:block;font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.55">${esc(ADD.data.excerpt)}</span></span>
+        </div>
+        <label class="lbl" for="aColl" style="margin-top:18px">Collection</label>
+        <select class="inp" id="aColl"><option value="">Inbox only</option>
+          ${COLLS.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>`:""}
+      ${ADD.phase==="dup"?`<div class="empty" style="text-align:left;padding:20px;margin-top:18px;border-style:solid;
+          border-color:color-mix(in oklab,var(--warn) 56%,var(--border))">
+        <h2 style="font-size:16px">You already saved this</h2>
+        <p style="max-width:none">“${esc(item(ADD.dupId).title)}” is already in your library.</p>
+        <button class="btn wide" data-opendup="${ADD.dupId}">Open the one you have</button></div>`:""}
+      ${ADD.phase==="error"?`<div class="empty" style="text-align:left;padding:20px;margin-top:18px;border-style:solid;
+          border-color:color-mix(in oklab,var(--err) 52%,var(--border))">
+        <h2 style="font-size:16px">Couldn't read that page</h2>
+        <p style="max-width:none">The server returned a paywall instead of the article.</p>
+        <div style="display:grid;gap:10px"><button class="btn wide" data-retry="1">Retry</button>
+        <button class="btn wide" data-savelink="1">Save the link only</button></div></div>`:""}`;
+  } else if(t==="file"){
+    body = `<div class="empty" style="margin-top:0">${ico("up","mark ico")}<h2>Drop a PDF or EPUB</h2>
+      <p>Up to 80 MB. Libra keeps the original and builds a reflowable copy.</p>
+      <button class="btn prime" data-filepick="1">Choose a file</button></div>`;
+  } else {
+    body = `<label class="lbl" for="nTitle">Title</label>
+      <input class="inp" id="nTitle" data-autofocus placeholder="Notes on…">
+      <label class="lbl" for="nBody" style="margin-top:16px">Note</label>
+      <textarea class="inp" id="nBody" placeholder="Write it down before it evaporates."></textarea>`;
+  }
+  openSheet(`
+    <div class="sheet-head"><h2>Add content</h2><span style="flex:1"></span>
+      <button class="iconbtn" data-act="close" aria-label="Close">${ico("x")}</button></div>
+    <div class="sheet-body">
+      <div class="seg" style="margin-bottom:22px">
+        <button data-addtab="url" aria-pressed="${t==="url"}">URL</button>
+        <button data-addtab="file" aria-pressed="${t==="file"}">File</button>
+        <button data-addtab="note" aria-pressed="${t==="note"}">Note</button>
+      </div>
+      ${body}
+    </div>
+    <div class="sheet-foot">
+      ${t==="url" && ADD.phase!=="ready"
+        ? `<button class="btn prime wide" data-fetch="1">Fetch preview</button>`
+        : `<button class="btn prime wide" data-save="1">Save to library</button>`}
+    </div>`);
+}
+function doFetch(){
+  const el=$("#aUrl"); ADD.url=(el?el.value:ADD.url).trim().replace(/^https?:\/\//,"");
+  if(!ADD.url){ snack("Paste an address first"); return; }
+  const dup = S.items.find(i=>i.url && i.url.toLowerCase()===ADD.url.toLowerCase());
+  ADD.phase="loading"; sheetAdd();
+  setTimeout(()=>{
+    if(dup){ ADD.phase="dup"; ADD.dupId=dup.id; }
+    else if(/paywall|locked/i.test(ADD.url)) ADD.phase="error";
+    else { ADD.data = FETCHABLE[ADD.url.toLowerCase()] || infer(ADD.url); ADD.phase="ready"; }
+    sheetAdd();
+  }, 1000);
+}
+function infer(u){
+  const host=u.split("/")[0]||"unknown.example";
+  const slug=(u.split("/").slice(1).join(" ")||"Saved page").replace(/[-_]+/g," ");
+  const pub=host.split(".")[0].replace(/^\w/,c=>c.toUpperCase());
+  return {title:slug.replace(/\b\w/g,c=>c.toUpperCase()), author:"Unknown author", pub, mono:pub.slice(0,2).toUpperCase(),
+    type:"article", mins:9, excerpt:"Preview built from the page itself. You can edit the author after saving."};
+}
+function saveAdd(linkOnly){
+  if(ADD.tab==="note"){
+    const t=($("#nTitle")?.value||"").trim()||"Untitled note";
+    const b=($("#nBody")?.value||"").trim()||"No body yet.";
+    S.items.unshift({id:S.nextId++,title:t,author:"Nadia Albrecht",pub:"Personal note",mono:"NA",type:"note",
+      mins:1,saved:"Today",progress:0,status:"inbox",fav:false,coll:"",tags:[],url:"",excerpt:b});
+    closeSheet(); snack("Note saved to Inbox"); S.filter="inbox"; go("library"); return;
+  }
+  if(ADD.phase!=="ready" && !linkOnly){ snack("Fetch a preview first"); return; }
+  const d = linkOnly ? {...infer(ADD.url), excerpt:"Link saved without a readable copy."} : ADD.data;
+  if(!d) return;
+  const cid = $("#aColl")?.value || "";
+  S.items.unshift({id:S.nextId++,title:d.title,author:d.author,pub:d.pub,mono:d.mono,type:d.type,mins:d.mins,
+    saved:"Today",progress:0,status:"inbox",fav:false,coll:cid,tags:[],url:ADD.url,excerpt:d.excerpt});
+  const newId = S.items[0].id;
+  closeSheet();
+  snack(`Saved to ${cid?`Inbox and ${coll(cid).name}`:"Inbox"}`, {label:"Read", fn:()=>go("reader",{id:newId})});
+  S.filter="inbox"; go("library");
+}
+function sheetFilter(){
+  openSheet(`
+    <div class="sheet-head"><h2>View</h2><span style="flex:1"></span>
+      <button class="iconbtn" data-act="close" aria-label="Close">${ico("x")}</button></div>
+    <div class="sheet-body" style="padding-bottom:34px">
+      ${[["all","Everything","Inbox and reading, archive hidden"],["inbox","Inbox","Saved, not started"],
+         ["reading","Reading","Anything part-read"],["archived","Archived","Finished and filed away"],
+         ["fav","Favorites","Starred, whatever the status"]]
+        .map(([k,t,d])=>`<button class="optrow" data-filter="${k}">
+          <span class="t"><b>${t}</b><span>${d}</span></span>
+          ${S.filter===k?`<span style="color:var(--accent)">${ico("check")}</span>`:""}</button>`).join("")}
+    </div>`);
+}
+
+/* ============================================================ events */
+document.addEventListener("click", e=>{
+  const t = e.target.closest("[data-tab],[data-open],[data-act],[data-hl],[data-gohl],[data-filter],[data-hcolor],[data-coll],[data-clearcoll],[data-q],[data-rfont],[data-settheme],[data-addtab],[data-paste],[data-fetch],[data-save],[data-savelink],[data-retry],[data-opendup],[data-filepick],[data-nc],[data-savenote],[data-delhl],[data-noop]");
+  if(!t){
+    if(e.target.id==="veil"){ closeSheet(); return; }
+    const mk = e.target.closest("mark.hl");
+    if(mk){ const h=S.highlights.find(x=>x.id===mk.dataset.id); if(h) sheetNote(h.id); }
+    return;
+  }
+  const d = t.dataset;
+  if(d.noop!==undefined){ e.preventDefault(); snack("Opening the original source is out of scope for this prototype"); return; }
+  e.preventDefault();
+
+  if(d.tab){ go(d.tab); return; }
+  if(d.open){ go("reader",{id:+d.open}); return; }
+  if(d.hl){ const h=S.highlights.find(x=>x.id===d.hl); if(h) go("reader",{id:h.item, hl:h.id}); return; }
+  if(d.gohl){ closeSheet(); const h=S.highlights.find(x=>x.id===d.gohl); jumpTo(d.gohl); if(h&&!h.note) setTimeout(()=>sheetNote(h.id),380); return; }
+  if(d.filter){ S.filter=d.filter; closeSheet(); if(S.screen!=="library") go("library"); else renderLibrary(); return; }
+  if(d.hcolor){ S.hlFilter = S.hlFilter===d.hcolor?null:d.hcolor; renderHighlights(); return; }
+  if(d.coll){ S.collFilter=d.coll; S.q=""; S.filter="all"; go("library"); return; }
+  if(d.clearcoll!==undefined){ S.collFilter=null; renderLibrary(); return; }
+  if(d.q){ S.gq=d.q; renderSearch(); return; }
+
+  if(d.rfont){ S.reader.font=d.rfont; const a=$("#articleBody"); if(a) a.dataset.font=d.rfont;
+    $$("[data-rfont]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.rfont===d.rfont))); return; }
+  if(d.settheme){ setTheme(d.settheme); sheetDisplay(); return; }
+
+  if(d.addtab){ ADD.tab=d.addtab; ADD.phase="idle"; sheetAdd(); return; }
+  if(d.paste){ ADD.url=d.paste; const el=$("#aUrl"); if(el) el.value=d.paste; doFetch(); return; }
+  if(d.fetch!==undefined){ doFetch(); return; }
+  if(d.retry!==undefined){ ADD.phase="idle"; sheetAdd(); setTimeout(doFetch,80); return; }
+  if(d.savelink!==undefined){ saveAdd(true); return; }
+  if(d.save!==undefined){ saveAdd(false); return; }
+  if(d.opendup){ closeSheet(); go("reader",{id:+d.opendup}); return; }
+  if(d.filepick!==undefined){ snack("File picking is out of scope for this prototype"); return; }
+
+  if(d.nc){
+    const id = $("#sheet [data-savenote]").dataset.savenote;
+    const h = S.highlights.find(x=>x.id===id); h.color=d.nc;
+    applyRuntime(); sheetNote(id); return;
+  }
+  if(d.savenote){
+    const h = S.highlights.find(x=>x.id===d.savenote);
+    h.note = $("#nText").value.trim();
+    closeSheet(); applyRuntime();
+    snack(h.note?"Note attached":"Highlight updated", {label:"See all", fn:()=>go("highlights")});
+    return;
+  }
+  if(d.delhl){
+    S.highlights = S.highlights.filter(x=>x.id!==d.delhl);
+    const mk=$(`mark.hl[data-id="${d.delhl}"]`); if(mk) mk.replaceWith(document.createTextNode(mk.textContent));
+    closeSheet(); snack("Highlight removed"); return;
+  }
+
+  switch(d.act){
+    case "theme": setTheme(document.documentElement.dataset.theme==="dark"?"light":"dark"); renderHome(); break;
+    case "back": go(S.prev==="reader"?"library":S.prev); break;
+    case "close": closeSheet(); break;
+    case "sheet-add": ADD={tab:"url",phase:"idle",url:"",data:null,dupId:null}; sheetAdd(); break;
+    case "sheet-display": sheetDisplay(); break;
+    case "sheet-notes": sheetNotes(); break;
+    case "sheet-filter": sheetFilter(); break;
+    case "clear-hl": S.hlFilter=null; renderHighlights(); break;
+    case "clear-search": S.gq=""; renderSearch(); break;
+    case "archive": {
+      const i=item(S.readId); const prev={status:i.status, progress:i.progress};
+      i.status="archived"; if(i.progress<100) i.progress=100;
+      renderReader({keepScroll:true});
+      snack(`“${i.title}” archived`, {label:"Undo", fn(){ i.status=prev.status; i.progress=prev.progress;
+        renderReader({keepScroll:true}); snack("Put back"); }});
+      break;
+    }
+  }
+});
+$("#mFav").addEventListener("click", ()=>{
+  const i=item(S.readId); i.fav=!i.fav;
+  $("#mFav").setAttribute("aria-pressed", String(i.fav)); $("#mFav").classList.toggle("on", i.fav);
+  snack(i.fav?"Added to favorites":"Removed from favorites");
+});
+$("#mQ").addEventListener("input", e=>{ S.q=e.target.value; renderLibrary(); });
+$("#mHQ").addEventListener("input", e=>{ S.hq=e.target.value; renderHighlights(); });
+$("#mGQ").addEventListener("input", e=>{ S.gq=e.target.value; renderSearch(); });
+document.addEventListener("input", e=>{
+  const a=$("#articleBody");
+  if(e.target.matches("[data-rsize]")){ S.reader.size=+e.target.value;
+    if(a) a.style.setProperty("--read-size", S.reader.size+"px");
+    const v=$('[data-v="size"]'); if(v) v.textContent=S.reader.size+"px"; }
+  if(e.target.matches("[data-rlead]")){ S.reader.lead=+e.target.value;
+    if(a) a.style.setProperty("--read-lead", S.reader.lead);
+    const v=$('[data-v="lead"]'); if(v) v.textContent=S.reader.lead.toFixed(2); }
+});
+
+/* scroll: progress + auto-hiding reader bar */
+let lastTop = 0;
+$("#scroller").addEventListener("scroll", ()=>{
+  updateProgress();
+  $("#selTool").hidden = true;
+  const top = $("#scroller").scrollTop;
+  if(S.screen==="reader"){
+    const bar=$("#readTop");
+    if(top > lastTop + 6 && top > 140) bar.classList.add("hide");
+    else if(top < lastTop - 6) bar.classList.remove("hide");
+  }
+  lastTop = top;
+}, {passive:true});
+
+/* selection toolbar */
+function showSelTool(){
+  const sel=window.getSelection(), body=$("#articleBody");
+  if(S.screen!=="reader" || !sel || sel.isCollapsed || !body || !body.contains(sel.anchorNode)){ $("#selTool").hidden=true; return; }
+  const txt=sel.toString().trim();
+  if(txt.length<3){ $("#selTool").hidden=true; return; }
+  const tool=$("#selTool");
+  tool.innerHTML = `<button data-mk="yellow">${ico("hl","ico sm")}Highlight</button>
+    <span class="dots">${Object.keys(COLORS).map(c=>`<button data-mk="${c}" style="background:var(--hl-${c})" aria-label="Highlight in ${COLORS[c]}"></button>`).join("")}</span>
+    <span class="sepv"></span>
+    <button data-mknote="1">${ico("note","ico sm")}Note</button>
+    <button data-mkcopy="1">${ico("copy","ico sm")}Copy</button>`;
+  tool.hidden=false;
+  const r=sel.getRangeAt(0).getBoundingClientRect();
+  const pr=$(".phone").getBoundingClientRect();
+  const w=tool.offsetWidth, h=tool.offsetHeight;
+  let left = r.left - pr.left + r.width/2 - w/2;
+  left = Math.max(10, Math.min(left, pr.width - w - 10));
+  let top = r.top - pr.top - h - 10;
+  if(top < 58) top = r.bottom - pr.top + 10;
+  tool.style.left=left+"px"; tool.style.top=top+"px";
+}
+document.addEventListener("mouseup", e=>{ if(e.target.closest(".seltool,.sheet")) return; setTimeout(showSelTool,10); });
+document.addEventListener("touchend", e=>{ if(e.target.closest(".seltool,.sheet")) return; setTimeout(showSelTool,180); });
+$("#selTool").addEventListener("mousedown", e=>e.preventDefault());
+$("#selTool").addEventListener("click", e=>{
+  const b=e.target.closest("[data-mk],[data-mknote],[data-mkcopy]"); if(!b) return;
+  const sel=window.getSelection();
+  if(b.dataset.mkcopy!==undefined){ navigator.clipboard?.writeText(sel.toString()).catch(()=>{});
+    $("#selTool").hidden=true; snack("Passage copied"); return; }
+  if(!sel || sel.isCollapsed) return;
+  const text=sel.toString().trim();
+  const id="r"+(S.nextId++);
+  const mk=document.createElement("mark"); mk.className="hl"; mk.dataset.id=id;
+  mk.dataset.c = b.dataset.mknote!==undefined ? "yellow" : b.dataset.mk;
+  const r=sel.getRangeAt(0);
+  try{ r.surroundContents(mk); }catch(err){ mk.appendChild(r.extractContents()); r.insertNode(mk); }
+  sel.removeAllRanges();
+  S.highlights.unshift({id, item:S.readId, color:mk.dataset.c, text, note:"", tags:[], created:true});
+  $("#selTool").hidden=true;
+  if(b.dataset.mknote!==undefined) sheetNote(id);
+  else snack("Highlighted", {label:"Add a note", fn:()=>sheetNote(id)});
+});
+
+/* clock + boot */
+function tick(){ $("#clock").textContent = new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); }
+function boot(){
+  try{ const th=localStorage.getItem("libra-m:theme"); if(th) document.documentElement.dataset.theme=th; }catch(e){}
+  let saved=null; try{ saved=JSON.parse(localStorage.getItem("libra-m:nav")||"null"); }catch(e){}
+  if(saved && saved.id) S.readId = saved.id;
+  tick(); setInterval(tick, 20000);
+  go(saved && saved.screen ? saved.screen : "home");
+}
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Libra Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:oklch(0.979 0.003 85);
+  --surface:oklch(0.960 0.004 100);
+  --fg:oklch(0.205 0.013 76);
+  --muted:oklch(0.505 0.009 75);
+  --border:oklch(0.900 0.005 95);
+  --accent:oklch(0.514 0.083 29);
+  --accent-ink:oklch(0.985 0.003 85);
+  --primary:oklch(0.199 0.0155 76);
+  --primary-hover:oklch(0.290 0.016 76);
+  --primary-ink:oklch(0.979 0.003 85);
+  --well:oklch(0.970 0.003 92);
+  --serif:"Newsreader","Iowan Old Style",Georgia,serif;
+  --sans:"Archivo",-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:oklch(0.198 0.005 75); --surface:oklch(0.246 0.005 75);
+  --fg:oklch(0.932 0.005 85); --muted:oklch(0.745 0.007 80);
+  --border:oklch(0.345 0.005 75); --accent:oklch(0.730 0.075 38);
+  --accent-ink:oklch(0.185 0.012 40); --well:oklch(0.225 0.005 75);
+  --primary:oklch(0.730 0.075 38); --primary-hover:oklch(0.790 0.072 38);
+  --primary-ink:oklch(0.185 0.012 40);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;padding:72px 32px 96px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}
+.wrap{max-width:940px;margin:0 auto}
+.top{display:flex;align-items:flex-start;gap:20px;margin-bottom:56px}
+.mark{width:36px;height:36px;flex:none;stroke:var(--accent);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin-top:4px}
+.wm{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:-.025em;line-height:1.1}
+.wm span{font-family:var(--sans);font-size:17px;font-weight:500;color:var(--muted);letter-spacing:.015em;margin-left:11px}
+.lede{margin:14px 0 0;max-width:62ch;font-size:17px;color:var(--muted);line-height:1.65}
+.themebtn{margin-left:auto;display:inline-flex;align-items:center;gap:9px;padding:13px 18px;border:1px solid var(--border);
+  border-radius:8px;font-size:14px;font-weight:500;color:var(--muted);background:var(--bg);line-height:1.2}
+.themebtn:hover{border-color:var(--accent);color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:22px}
+.card{display:block;text-decoration:none;color:inherit;border:1px solid var(--border);border-radius:14px;
+  padding:34px;background:var(--well);transition:border-color .16s ease,transform .16s ease}
+.card:hover{border-color:color-mix(in oklab,var(--accent) 52%,var(--border));transform:translateY(-2px)}
+@media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
+.card .kicker{font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.card h2{font-family:var(--serif);font-size:24px;font-weight:600;letter-spacing:-.018em;line-height:1.25;margin:12px 0 0}
+.card p{margin:12px 0 0;font-size:14.5px;color:var(--muted);line-height:1.65}
+.card .go{display:inline-flex;align-items:center;gap:8px;margin-top:22px;font-size:14px;font-weight:500;color:var(--accent)}
+.card .go svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.sec{margin-top:64px;border-top:1px solid var(--border);padding-top:36px}
+.sec h2{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 22px}
+.flows{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:26px 34px;margin:0;padding:0;list-style:none}
+.flows h3{font-family:var(--serif);font-size:18px;font-weight:600;letter-spacing:-.012em;margin:0 0 7px;line-height:1.3}
+.flows p{margin:0;font-size:14px;color:var(--muted);line-height:1.65}
+.foot{margin-top:56px;font-size:13.5px;color:var(--muted);line-height:1.7}
+.foot code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
+  background:var(--surface);padding:3px 7px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top" data-od-id="launcher-header">
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 7.2v12.1M8.3 20.8h7.4M12 7.2C10 5.6 6.6 5 3.4 5.5v9.4c3.2-.5 6.6.1 8.6 1.7M12 7.2c2-1.6 5.4-2.2 8.6-1.7v9.4c-3.2-.5-6.6.1-8.6 1.7M12 3.4v1.6"/>
+    </svg>
+    <div>
+      <h1 class="wm" style="margin:0">Libra<span>Reader</span></h1>
+      <p class="lede">A quiet place to keep what you mean to read. Two prototypes below share one set of
+        tokens, one type pairing, and the same sample library of design criticism, systems thinking, and urbanism.</p>
+    </div>
+    <button class="themebtn" id="themeBtn" type="button"></button>
+  </header>
+
+  <div class="grid" data-od-id="launcher-cards">
+    <a class="card" href="libra-reader.html" data-od-id="launcher-desktop">
+      <span class="kicker">Primary · desktop</span>
+      <h2>The connected app</h2>
+      <p>Eight routed views — Home, Library, Reader, Highlights, Collections, Collection detail, Search,
+        Settings — sharing one state object, so selections and filters survive as you move between them.</p>
+      <span class="go">Open the app
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M12.6 6l6 6-6 6"/></svg></span>
+    </a>
+    <a class="card" href="libra-reader-mobile.html" data-od-id="launcher-mobile">
+      <span class="kicker">Companion · mobile</span>
+      <h2>The phone</h2>
+      <p>A 390&times;844 frame with bottom navigation, single-column library, full-screen reader with an
+        auto-hiding bar, and bottom sheets for adding content, reading settings, and annotations.</p>
+      <span class="go">Open the phone
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M12.6 6l6 6-6 6"/></svg></span>
+    </a>
+  </div>
+
+  <section class="sec" data-od-id="launcher-flows">
+    <h2>Wired end to end</h2>
+    <ul class="flows">
+      <li><h3>Highlight, then annotate</h3>
+        <p>Select any sentence in the reader, pick a colour, attach a note, and find that passage waiting
+          under Highlights — click it to return to the exact spot in the article.</p></li>
+      <li><h3>Add a URL</h3>
+        <p>Paste an address, watch it fetch, review the preview, choose a collection, and save to the Inbox.
+          Duplicate links and paywalled pages each get their own answer.</p></li>
+      <li><h3>Archive with Undo</h3>
+        <p>Finish an article, archive it from the end of the page, and the confirmation stays long enough
+          to change your mind.</p></li>
+    </ul>
+  </section>
+
+  <p class="foot">Both files are standalone — no build step, no dependencies beyond the two webfonts.
+    Reading preferences and the last view are kept in <code>localStorage</code>. Palette and type decisions
+    are recorded in <code>brand-spec.md</code>.</p>
+
+</div>
+
+<script>
+const btn = document.getElementById("themeBtn");
+const SUN = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.6v2.2M12 19.2v2.2M4.6 4.6 6.2 6.2M17.8 17.8l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.6 19.4 6.2 17.8M17.8 6.2l1.6-1.6"/></svg>';
+const MOON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.4 13.6A8.4 8.4 0 0 1 10.4 3.6a8.4 8.4 0 1 0 10 10z"/></svg>';
+function paint(){
+  const dark = document.documentElement.dataset.theme === "dark";
+  btn.innerHTML = (dark ? SUN : MOON) + (dark ? "Ivory" : "Charcoal");
+  btn.setAttribute("aria-label", dark ? "Switch to the ivory theme" : "Switch to the charcoal theme");
+}
+btn.addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("libra:theme", next); } catch (e) {}
+  paint();
+});
+try { const t = localStorage.getItem("libra:theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+paint();
+</script>
+</body>
+</html>

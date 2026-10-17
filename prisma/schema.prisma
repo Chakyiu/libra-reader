@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum DocumentType {
+  ARTICLE
+  PDF
+  EPUB
+  NOTE
+}
+
+enum ReadingStatus {
+  INBOX
+  READING
+  ARCHIVED
+}
+
+/// READY: a readable copy (or the original file) is stored.
+/// LINK_ONLY: the user kept the address without a readable copy.
+/// FAILED: the stored file could not be processed.
+enum ImportStatus {
+  READY
+  LINK_ONLY
+  FAILED
+}
+
+enum HighlightColor {
+  YELLOW
+  SAGE
+  BLUE
+  BLUSH
+}
+
+enum CollectionColor {
+  YELLOW
+  SAGE
+  BLUE
+  BLUSH
+  TERRACOTTA
+  STONE
+}
+
+enum ThemePreference {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+enum ReaderFont {
+  SERIF
+  SANS
+}
+
+model Document {
+  id              String        @id @default(cuid())
+  title           String
+  author          String?
+  publication     String?
+  sourceUrl       String?
+  type            DocumentType
+  status          ReadingStatus @default(INBOX)
+  importStatus    ImportStatus  @default(READY)
+  importError     String?
+  isFavorite      Boolean       @default(false)
+  /// Sanitized on the server before it is stored; never raw page HTML.
+  contentHtml     String?
+  contentText     String?
+  excerpt         String?
+  /// Relative to the storage directory, which lives outside /public.
+  filePath        String?
+  fileName        String?
+  fileSize        Int?
+  mimeType        String?
+  pageCount       Int?
+  wordCount       Int           @default(0)
+  readingMinutes  Int?
+  /// 0..1, the furthest point reached.
+  progress        Float         @default(0)
+  /// JSON validated by readingLocationSchema in lib/validation.ts.
+  readingLocation String?
+  lastOpenedAt    DateTime?
+  archivedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  highlights  Highlight[]
+  collections DocumentCollection[]
+  tags        DocumentTag[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([sourceUrl])
+}
+
+model Highlight {
+  id          String         @id @default(cuid())
+  documentId  String
+  quote       String
+  prefix      String         @default("")
+  suffix      String         @default("")
+  /// The sentence or paragraph around the quote, for display away from the reader.
+  context     String         @default("")
+  /// Character offsets into the rendered document text.
+  startOffset Int
+  endOffset   Int
+  color       HighlightColor @default(YELLOW)
+  note        String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([createdAt])
+}
+
+model Collection {
+  id          String          @id @default(cuid())
+  name        String
+  description String          @default("")
+  color       CollectionColor @default(YELLOW)
+  isFavorite  Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  documents DocumentCollection[]
+}
+
+/// Deleting a collection removes only these rows; documents are untouched.
+model DocumentCollection {
+  documentId   String
+  collectionId String
+  addedAt      DateTime @default(now())
+
+  document   Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, collectionId])
+  @@index([collectionId])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  documents DocumentTag[]
+}
+
+model DocumentTag {
+  documentId String
+  tagId      String
+  addedAt    DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, tagId])
+  @@index([tagId])
+}
+
+/// Single row (id = 1).
+model Preference {
+  id          Int             @id @default(1)
+  theme       ThemePreference @default(SYSTEM)
+  font        ReaderFont      @default(SERIF)
+  fontSize    Int             @default(19)
+  lineHeight  Float           @default(1.7)
+  columnWidth Int             @default(66)
+  updatedAt   DateTime        @updatedAt
+}

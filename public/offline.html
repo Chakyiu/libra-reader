@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#F9F8F6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171513" media="(prefers-color-scheme: dark)" />
+    <title>Libra isn't running</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f9f8f6;
+        --fg: #1b1611;
+        --muted: #68645f;
+        --ink: #1a150e;
+        --on-ink: #f9f8f6;
+        --line: #dfdeda;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #171513;
+          --fg: #eae8e5;
+          --muted: #afaca7;
+          --ink: #eae8e5;
+          --on-ink: #171513;
+          --line: #3b3936;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+      }
+      main { max-width: 34rem; padding: 2.5rem 1.5rem; }
+      svg { display: block; margin-bottom: 1.5rem; }
+      h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 560;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+      }
+      p {
+        margin: 0.85rem 0 0;
+        max-width: 38ch;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 0.95rem;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+      button {
+        margin-top: 1.5rem;
+        border: 0;
+        border-radius: 4px;
+        background: var(--ink);
+        color: var(--on-ink);
+        font: 500 0.85rem/1 ui-sans-serif, system-ui, sans-serif;
+        padding: 0.7rem 1rem;
+        cursor: pointer;
+      }
+      button:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#F2F2EF"/>
+        <g transform="translate(4 4)" fill="none" stroke="#91544B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 7.2v12.1M8.3 20.8h7.4M12 7.2C10 5.6 6.6 5 3.4 5.5v9.4c3.2-.5 6.6.1 8.6 1.7M12 7.2c2-1.6 5.4-2.2 8.6-1.7v9.4c-3.2-.5-6.6.1-8.6 1.7M12 3.4v1.6"/>
+        </g>
+      </svg>
+      <h1>Libra isn't running.</h1>
+      <p>This window can open on its own, but your library lives on this computer. Start Libra, then try again.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

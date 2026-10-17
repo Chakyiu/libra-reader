@@ -1,0 +1,32 @@
+# Build context. The image installs and compiles its own dependencies.
+node_modules
+.next
+out
+build
+coverage
+test-results
+playwright-report
+blob-report
+playwright/.cache
+.git
+.impeccable
+desgin
+e2e
+tests
+.tmp
+data
+
+# Regenerated inside the image by `npm ci` (prisma generate, PDF.js assets).
+lib/generated
+public/vendor
+
+# Local environment. Compose passes the variables the container needs.
+.env
+.env.*
+!.env.example
+
+*.md
+!README.md
+Dockerfile*
+docker-compose*.yml
+compose.yaml
