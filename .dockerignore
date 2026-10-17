@@ -11,6 +11,7 @@ playwright/.cache
 .git
 .impeccable
 desgin
+docs
 e2e
 tests
 .tmp

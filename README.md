@@ -4,6 +4,16 @@ A local-first place to save, read, highlight, and organize articles, PDFs, EPUBs
 
 **Core flow:** save content → read it → highlight and annotate it → organize it → revisit highlights.
 
+## Screenshots
+
+![Home, with a piece in progress and the recently saved shelf](docs/screenshots/home.png)
+
+![The article reader, with the contents list and the annotations panel](docs/screenshots/reader.png)
+
+![The library as a grid, including a note, a PDF, and an EPUB](docs/screenshots/library.png)
+
+![Home on a phone](docs/screenshots/phone.png)
+
 ## Quick start
 
 Requires Node.js 22.12 or newer.
