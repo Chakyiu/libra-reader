@@ -36,6 +36,13 @@ enum HighlightColor {
   BLUSH
 }
 
+enum AssistKind {
+  SUMMARY
+  OUTLINE
+  QUESTION
+  EXPLAIN
+}
+
 enum CollectionColor {
   YELLOW
   SAGE
@@ -91,6 +98,7 @@ model Document {
   highlights  Highlight[]
   collections DocumentCollection[]
   tags        DocumentTag[]
+  assistNotes AssistNote[]
 
   @@index([status])
   @@index([createdAt])
@@ -113,7 +121,8 @@ model Highlight {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document    Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  assistNotes AssistNote[]
 
   @@index([documentId])
   @@index([createdAt])
@@ -173,4 +182,32 @@ model Preference {
   lineHeight  Float           @default(1.7)
   columnWidth Int             @default(66)
   updatedAt   DateTime        @updatedAt
+}
+
+/// Single row (id = 1). The API key is never sent to the browser or included in export.
+model AssistConfig {
+  id        Int      @id @default(1)
+  baseUrl   String   @default("https://api.openai.com/v1")
+  model     String   @default("gpt-4o-mini")
+  apiKey    String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
+/// A generated answer. Summary and outline are one per document; an explanation is one per highlight; questions keep a short recent list.
+model AssistNote {
+  id          String     @id @default(cuid())
+  documentId  String
+  highlightId String?
+  kind        AssistKind
+  question    String?
+  answer      String
+  model       String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  document  Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  highlight Highlight? @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, kind])
+  @@index([highlightId])
 }

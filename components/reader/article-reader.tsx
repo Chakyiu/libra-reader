@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { ColorChips } from "@/components/highlights/color-chips";
 import { NoteDialog, type NoteDraft } from "@/components/highlights/note-dialog";
 import { AnnotationsList, DocumentFacts } from "@/components/reader/annotations-panel";
+import { AssistPanel, ExplainPassage, assistRevision } from "@/components/reader/assist-panel";
 import { SelectionToolbar, type SelectionRect } from "@/components/reader/selection-toolbar";
 import { usePositionSaver } from "@/components/reader/use-position-saver";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ import { createHighlight, deleteHighlight, updateHighlight } from "@/lib/actions
 import { formatMinutes, TYPE_LABEL } from "@/lib/format";
 import type { HighlightColor } from "@/lib/generated/prisma/enums";
 import { isOverlayOpen, isTypingTarget } from "@/lib/shortcuts";
-import type { HighlightItem, Preferences, ReaderDocument } from "@/lib/types";
+import type { DocumentAssist, HighlightItem, Preferences, ReaderDocument } from "@/lib/types";
 import { MAX_QUOTE_LENGTH, type ReadingLocation } from "@/lib/validation";
 
 const TOOLBAR_HEIGHT = 56;
@@ -102,6 +103,8 @@ export function ArticleReader({
   document: doc,
   highlights,
   preferences,
+  assist,
+  assistConfigured,
   focusHighlightId,
   panelOpen,
   annotationsOpen,
@@ -113,6 +116,8 @@ export function ArticleReader({
   document: ReaderDocument & { contentHtml: string };
   highlights: HighlightItem[];
   preferences: Preferences;
+  assist: DocumentAssist;
+  assistConfigured: boolean;
   focusHighlightId?: string;
   panelOpen: boolean;
   annotationsOpen: boolean;
@@ -530,6 +535,14 @@ export function ArticleReader({
       />
       <hr className="my-6 border-border" />
       <DocumentFacts document={doc} onAddTag={onAddTag} />
+      <hr className="my-6 border-border" />
+      <AssistPanel
+        key={assistRevision(assist)}
+        documentId={doc.id}
+        wordCount={doc.wordCount}
+        assist={assist}
+        configured={assistConfigured}
+      />
     </>
   );
 
@@ -652,6 +665,13 @@ export function ArticleReader({
             <div className="mb-4">
               <ColorChips value={activeHighlight.color} onChange={(color) => void update(activeHighlight.id, { color })} />
             </div>
+            <ExplainPassage
+              key={`${activeHighlight.id}:${assist.explanations[activeHighlight.id]?.updatedAt ?? ""}`}
+              documentId={doc.id}
+              highlightId={activeHighlight.id}
+              initial={assist.explanations[activeHighlight.id] ?? null}
+              configured={assistConfigured}
+            />
             <div className="flex items-center gap-2">
               <Button
                 size="sm"

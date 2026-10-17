@@ -185,7 +185,7 @@ export function Rail({ shell, onNavigate }: { shell: ShellData; onNavigate?: () 
       </div>
 
       <div className="grid gap-0.5 border-t border-border px-3 pt-2.5 pb-3">
-        <NavLink href="/settings" current={pathname === "/settings"} icon={Settings} onNavigate={onNavigate}>
+        <NavLink href="/settings" current={pathname.startsWith("/settings")} icon={Settings} onNavigate={onNavigate}>
           Settings
         </NavLink>
         <p className="flex items-center gap-2 px-3 pt-1.5 text-[11.5px] text-muted-foreground">

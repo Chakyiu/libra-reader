@@ -6,8 +6,13 @@ import { headingsFromHtml } from "@/lib/sanitize";
 import { makeSnippet, markTerms, searchTerms } from "@/lib/snippets";
 import { storageDir, databaseUrl } from "@/lib/env";
 import {
+  DEFAULT_ASSIST_BASE_URL,
+  DEFAULT_ASSIST_MODEL,
   DEFAULT_PREFERENCES,
+  type AssistAnswer,
+  type AssistStatus,
   type CollectionSummary,
+  type DocumentAssist,
   type DocumentListItem,
   type HighlightItem,
   type HighlightWithSource,
@@ -134,6 +139,48 @@ export async function getPreferences(): Promise<Preferences> {
     fontSize: row.fontSize,
     lineHeight: row.lineHeight,
     columnWidth: row.columnWidth,
+  };
+}
+
+export async function getAssistStatus(): Promise<AssistStatus> {
+  const row = await db.assistConfig.findUnique({ where: { id: 1 }, select: { baseUrl: true, model: true, apiKey: true } });
+  if (!row) return { configured: false, hasKey: false, baseUrl: DEFAULT_ASSIST_BASE_URL, model: DEFAULT_ASSIST_MODEL };
+  return { configured: true, hasKey: row.apiKey.length > 0, baseUrl: row.baseUrl, model: row.model };
+}
+
+function toAssistAnswer(note: {
+  id: string;
+  kind: AssistAnswer["kind"];
+  question: string | null;
+  answer: string;
+  model: string;
+  updatedAt: Date;
+}): AssistAnswer {
+  return {
+    id: note.id,
+    kind: note.kind,
+    question: note.question,
+    answer: note.answer,
+    model: note.model,
+    updatedAt: note.updatedAt.toISOString(),
+  };
+}
+
+export async function getDocumentAssist(documentId: string): Promise<DocumentAssist> {
+  const notes = await db.assistNote.findMany({ where: { documentId }, orderBy: { updatedAt: "desc" } });
+  const summary = notes.find((note) => note.kind === "SUMMARY") ?? null;
+  const outline = notes.find((note) => note.kind === "OUTLINE") ?? null;
+  const explanations: Record<string, AssistAnswer> = {};
+  for (const note of notes) {
+    if (note.kind === "EXPLAIN" && note.highlightId && !explanations[note.highlightId]) {
+      explanations[note.highlightId] = toAssistAnswer(note);
+    }
+  }
+  return {
+    summary: summary ? toAssistAnswer(summary) : null,
+    outline: outline ? toAssistAnswer(outline) : null,
+    questions: notes.filter((note) => note.kind === "QUESTION").slice(0, 8).map(toAssistAnswer),
+    explanations,
   };
 }
 
@@ -381,8 +428,25 @@ export async function listHighlights(filters: HighlightFilters): Promise<Highlig
     }),
   ]);
 
+  const explanations = rows.length
+    ? await db.assistNote.findMany({
+        where: { kind: "EXPLAIN", highlightId: { in: rows.map((row) => row.id) } },
+        orderBy: { updatedAt: "desc" },
+        select: { highlightId: true, answer: true, model: true },
+      })
+    : [];
+  const explanationByHighlight = new Map<string, { answer: string; model: string }>();
+  for (const note of explanations) {
+    if (note.highlightId && !explanationByHighlight.has(note.highlightId)) {
+      explanationByHighlight.set(note.highlightId, { answer: note.answer, model: note.model });
+    }
+  }
+
   return {
-    highlights: rows.map(toHighlightWithSource),
+    highlights: rows.map((row) => ({
+      ...toHighlightWithSource(row),
+      explanation: explanationByHighlight.get(row.id) ?? null,
+    })),
     total,
     sources,
     tags: tagRows.map((t) => t.name),

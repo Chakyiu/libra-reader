@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
 import { UrlSearchField } from "@/components/common/url-search-field";
 import { HighlightCard } from "@/components/highlights/highlight-card";
+import { ExplainPassage } from "@/components/reader/assist-panel";
 import { NoteDialog, type NoteDraft } from "@/components/highlights/note-dialog";
 import { ReviewDialog } from "@/components/highlights/review-dialog";
 import { MobileMenuButton } from "@/components/shell/mobile-nav";
@@ -25,6 +26,7 @@ export function HighlightsView({
   sources,
   tags,
   collections,
+  assistConfigured,
 }: {
   highlights: HighlightWithSource[];
   total: number;
@@ -32,6 +34,7 @@ export function HighlightsView({
   sources: Array<{ id: string; title: string }>;
   tags: string[];
   collections: CollectionSummary[];
+  assistConfigured: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -238,6 +241,15 @@ export function HighlightsView({
             <li key={highlight.id}>
               <HighlightCard
                 highlight={highlight}
+                extra={
+                  <ExplainPassage
+                    key={`${highlight.id}:${highlight.explanation?.answer ?? ""}`}
+                    documentId={highlight.document.id}
+                    highlightId={highlight.id}
+                    initial={highlight.explanation ?? null}
+                    configured={assistConfigured}
+                  />
+                }
                 actions={
                   <>
                     <Button

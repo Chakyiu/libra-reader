@@ -4,7 +4,15 @@ import { HIGHLIGHT_LABEL, highlightVar } from "@/lib/colors";
 import type { HighlightWithSource } from "@/lib/types";
 
 /** A saved passage with its note and a way back to the paragraph it came from. */
-export function HighlightCard({ highlight, actions }: { highlight: HighlightWithSource; actions?: React.ReactNode }) {
+export function HighlightCard({
+  highlight,
+  actions,
+  extra,
+}: {
+  highlight: HighlightWithSource;
+  actions?: React.ReactNode;
+  extra?: React.ReactNode;
+}) {
   return (
     <article className="relative rounded-lg border border-border bg-background px-[26px] py-6 transition-colors hover:border-foreground/30 max-sm:px-5 max-sm:py-5">
       <p className="font-serif text-[19px] leading-[1.6] tracking-[-0.005em] whitespace-pre-line max-sm:text-[17px]">
@@ -17,6 +25,7 @@ export function HighlightCard({ highlight, actions }: { highlight: HighlightWith
           {highlight.note}
         </p>
       )}
+      {extra}
       <div className="mt-[18px] flex flex-wrap items-center gap-x-[9px] gap-y-2 text-[12.5px] text-muted-foreground">
         <span className="chip gap-1.5 py-1">
           <span className="swatch" style={{ background: highlightVar(highlight.color) }} aria-hidden />

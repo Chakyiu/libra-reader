@@ -49,9 +49,10 @@ The port is published on `127.0.0.1` only. Libra has no login, so don't publish 
   - *Write a note.* An editable title and body.
 - **Reader:** a centred column, table of contents, progress bar, reading position restored by text offset (it survives font and width changes), and display controls for typeface, size, line spacing, column width, and theme. Favorite, archive, tag, and collection actions are in the toolbar, and a collapsible annotations panel sits alongside.
 - **Highlights:** select text to get a floating toolbar (four named colours, add note, copy). Highlights span paragraphs safely, survive reloads, and can be recoloured, annotated, or deleted (with Undo). The Highlights page offers search, filters, links back to each passage, and a one-at-a-time review mode.
+- **Assist:** summarize a document, outline it, explain a highlight, or ask a question about the passage. Connect an OpenAI-compatible host in Settings — OpenAI, or a local server such as Ollama at `http://127.0.0.1:11434/v1`. The key stays in the database, is never sent to the browser, and is left out of JSON export. Answers are labeled as generated and saved with the document. Long documents are shortened, and the model is told to stay with the text it was given.
 - **PDF and EPUB:** PDF.js renders PDFs page by page with zoom and saves the page you were on. epub.js renders EPUBs with chapter navigation and saves your location. Embedded scripts, forms, and links inside files stay inactive.
 - **Search:** across titles, authors, extracted article and book text, highlights, and notes, with grouped results and marked snippets.
-- **Settings:** theme (light, dark, or follow the system), reading defaults with a live preview, a keyboard shortcut reference (press `?` anywhere), a JSON export of everything, and installing Libra as an app.
+- **Settings:** theme (light, dark, or follow the system), reading defaults with a live preview, a keyboard shortcut reference (press `?` anywhere), the Assist model connection, a JSON export of everything, and installing Libra as an app.
 - **Installed app:** add Libra to the dock or home screen and it opens in its own window. Chrome and Edge show an Install button in Settings when the browser allows it. Pages are loaded from the local server; if that server is stopped, the window explains that instead of showing a broken page.
 
 ## Scripts
@@ -82,15 +83,16 @@ Relative paths resolve from the project root. `data/` is gitignored.
 
 ## Data and privacy
 
-- All documents, highlights, notes, collections, tags, and preferences live in the SQLite file. Uploaded originals live in the storage folder under random names.
-- **Settings → Export JSON** downloads everything except the original PDF and EPUB bytes, which stay in the storage folder.
-- Libra only contacts the internet when you ask it to fetch a URL. Images inside saved articles still load from their original sites when you read them.
+- All documents, highlights, notes, collections, tags, preferences, and Assist answers live in the SQLite file. Uploaded originals live in the storage folder under random names. The model API key lives in that database too, and is not included in export.
+- **Settings → Export JSON** downloads everything except the original PDF and EPUB bytes, which stay in the storage folder, and except the model API key.
+- Libra contacts the internet when you ask it to fetch a URL, and when you run Assist, which sends that passage to the model host you configured. Images inside saved articles still load from their original sites when you read them. If Libra is running in Docker and the model is on your computer, point Assist at `http://host.docker.internal:11434/v1` rather than `127.0.0.1`, which inside the container is the container itself.
 
 ## Security model
 
 Libra is a single-user app meant to run on `localhost`. It has no accounts or authentication, so don't expose it to a network as is. Within that scope:
 
 - **URL fetching (SSRF):** only `http`/`https` on standard ports, with no embedded credentials. Every resolved address is checked, and private, loopback, link-local (including cloud metadata), CGNAT, reserved, and IPv4-mapped ranges are rejected, as are `localhost`, `.local`, and single-label hosts. Validation runs in the socket's DNS lookup, so the address checked is the address connected to. Every redirect is re-validated (at most 5). The whole fetch has a 15-second timeout, and decompressed size is capped at 5 MB. See `lib/ssrf.ts` and `lib/safe-fetch.ts`.
+- **Assist:** the model endpoint is checked separately, and article fetching is unchanged. Public hosts stay on standard ports and must resolve only to public addresses. Loopback and private addresses are allowed on any port so a local model can answer. Link-local addresses, including cloud metadata, stay blocked, and a name that resolves to both public and private addresses is rejected. Redirects are not followed. The API key is stored in SQLite and is not included in client props or the JSON export. See `lib/assist-endpoint.ts`.
 - **Untrusted HTML:** `sanitize-html` runs with a strict allowlist. Scripts, styles, iframes, forms, SVG, event handlers, and `javascript:`/`data:` URLs are removed. Links get `noopener noreferrer`, images load lazily with no referrer, and incoming ids are replaced so saved pages can't clobber DOM globals. See `lib/sanitize.ts`.
 - **Uploads:** the file type comes from magic bytes and must agree with the extension. EPUB entries are size-checked before inflating, and DRM-protected EPUBs are refused. Files are served with `nosniff` and a `default-src 'none'; sandbox` CSP.
 - **Requests:** Server Actions validate every input with Zod. Route handlers that change data reject cross-site requests. The app sends a CSP and the usual hardening headers (`next.config.ts`).
@@ -105,10 +107,10 @@ components/             Client components only where there is interaction
   ui/                   shadcn/ui primitives restyled to the Libra tokens
   reader/               Article, PDF, and EPUB readers, selection toolbar, annotations
 lib/
-  actions/              Server Actions (documents, import, highlights, collections, preferences)
+  actions/              Server Actions (documents, import, highlights, collections, preferences, assist)
   anchoring/            Highlight anchoring: quote + prefix/suffix + offsets, and DOM wrapping
   queries.ts            Data access for server components
-  ssrf.ts, safe-fetch.ts, extract.ts, sanitize.ts, files.ts, storage.ts, validation.ts
+  ssrf.ts, safe-fetch.ts, assist-endpoint.ts, assist.ts, extract.ts, sanitize.ts, files.ts, storage.ts, validation.ts
 prisma/                 Schema, migrations, seed and its sample content
 tests/                  Vitest
 e2e/                    Playwright

@@ -235,3 +235,30 @@ export function fieldErrors(error: z.ZodError): Record<string, string[]> {
 export function firstError(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Something in that request wasn't valid.";
 }
+
+export const assistConfigSchema = z.object({
+  baseUrl: z.string().trim().min(1, "Add the model host address.").max(300, "That address is too long."),
+  model: z
+    .string()
+    .trim()
+    .min(1, "Add a model name.")
+    .max(80, "That model name is too long.")
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/, "Use a model name like gpt-4o-mini or llama3.2."),
+  apiKey: z.string().max(500, "That API key is too long.").optional(),
+});
+
+export const assistRequestSchema = z
+  .object({
+    documentId: idSchema,
+    kind: z.enum(["SUMMARY", "OUTLINE", "QUESTION", "EXPLAIN"]),
+    highlightId: idSchema.optional(),
+    question: z.string().trim().max(500, "Keep the question under 500 characters.").optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.kind === "QUESTION" && !value.question) {
+      ctx.addIssue({ code: "custom", message: "Ask something about this text.", path: ["question"] });
+    }
+    if (value.kind === "EXPLAIN" && !value.highlightId) {
+      ctx.addIssue({ code: "custom", message: "Choose a highlight to explain.", path: ["highlightId"] });
+    }
+  });

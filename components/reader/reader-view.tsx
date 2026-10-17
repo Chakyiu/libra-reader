@@ -20,6 +20,7 @@ import {
   PanelRight,
   Pencil,
   RotateCw,
+  Sparkles,
   Star,
   Tag,
   Trash,
@@ -29,6 +30,7 @@ import { toast } from "sonner";
 import { CollectionDialog, DeleteDocumentsDialog, TagDialog } from "@/components/documents/document-dialogs";
 import { useDocumentCommands } from "@/components/documents/use-document-commands";
 import { ArticleReader } from "@/components/reader/article-reader";
+import { AssistPanel, assistRevision } from "@/components/reader/assist-panel";
 import { DisplayControls } from "@/components/reader/display-controls";
 import { DocumentDetailsDialog } from "@/components/reader/document-details-dialog";
 import { NoteEditor } from "@/components/reader/note-editor";
@@ -48,7 +50,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { retryImport } from "@/lib/actions/import";
 import { TYPE_LABEL } from "@/lib/format";
 import { isOverlayOpen, isTypingTarget } from "@/lib/shortcuts";
-import type { CollectionSummary, HighlightItem, Preferences, ReaderDocument } from "@/lib/types";
+import type { CollectionSummary, DocumentAssist, HighlightItem, Preferences, ReaderDocument } from "@/lib/types";
 
 function ReaderLoading({ label }: { label: string }) {
   return (
@@ -155,6 +157,8 @@ export function ReaderView({
   collections,
   allTags,
   preferences: initialPreferences,
+  assist,
+  assistConfigured,
   focusHighlightId,
 }: {
   document: ReaderDocument;
@@ -162,6 +166,8 @@ export function ReaderView({
   collections: CollectionSummary[];
   allTags: string[];
   preferences: Preferences;
+  assist: DocumentAssist;
+  assistConfigured: boolean;
   focusHighlightId?: string;
 }) {
   const router = useRouter();
@@ -175,6 +181,7 @@ export function ReaderView({
   const [dialog, setDialog] = useState<"tag" | "collection" | "delete" | "details" | null>(null);
   const [editingNote, setEditingNote] = useState(false);
   const [barHidden, setBarHidden] = useState(false);
+  const [assistOpen, setAssistOpen] = useState(false);
 
   const isArticle = Boolean(document.contentHtml) && (document.type === "ARTICLE" || document.type === "NOTE");
   const archived = document.status === "ARCHIVED";
@@ -282,6 +289,23 @@ export function ReaderView({
         <IconAction label={archived ? "Restore to library" : "Archive"} onClick={toggleArchive}>
           {archived ? <ArchiveRestore /> : <Archive />}
         </IconAction>
+        {document.wordCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (!isArticle) {
+                setAssistOpen(true);
+                return;
+              }
+              if (window.matchMedia("(min-width: 1180px)").matches) setPanelOpen(true);
+              else setAnnotationsOpen(true);
+            }}
+          >
+            <Sparkles />
+            Assist
+          </Button>
+        )}
         <span aria-hidden className="mx-1 h-5 w-px bg-border max-sm:hidden" />
         {isArticle && (
           <>
@@ -373,6 +397,8 @@ export function ReaderView({
           document={{ ...document, contentHtml: document.contentHtml }}
           highlights={highlights}
           preferences={preferences}
+          assist={assist}
+          assistConfigured={assistConfigured}
           focusHighlightId={focusHighlightId}
           panelOpen={panelOpen}
           annotationsOpen={annotationsOpen}
@@ -388,6 +414,24 @@ export function ReaderView({
       ) : (
         <LinkOnlyPanel document={document} />
       )}
+
+      <Sheet open={assistOpen} onOpenChange={setAssistOpen}>
+        <SheetContent side="bottom" aria-describedby={undefined}>
+          <SheetHeader>
+            <SheetTitle>Assist</SheetTitle>
+          </SheetHeader>
+          <SheetBody className="pb-[max(2rem,env(safe-area-inset-bottom))]">
+            <AssistPanel
+              key={assistRevision(assist)}
+              documentId={document.id}
+              wordCount={document.wordCount}
+              assist={assist}
+              configured={assistConfigured}
+              showHeading={false}
+            />
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={displaySheetOpen} onOpenChange={setDisplaySheetOpen}>
         <SheetContent side="bottom" aria-describedby={undefined}>

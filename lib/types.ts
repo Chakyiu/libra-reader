@@ -110,6 +110,8 @@ export interface HighlightSource {
 
 export interface HighlightWithSource extends HighlightItem {
   document: HighlightSource;
+  /** A saved explanation of this passage, when the highlights page loaded one. */
+  explanation?: { answer: string; model: string } | null;
 }
 
 export interface Preferences {
@@ -131,4 +133,34 @@ export const DEFAULT_PREFERENCES: Preferences = {
 export interface SnippetSegment {
   text: string;
   hit: boolean;
+}
+
+export type AssistKindName = "SUMMARY" | "OUTLINE" | "QUESTION" | "EXPLAIN";
+
+export const DEFAULT_ASSIST_BASE_URL = "https://api.openai.com/v1";
+export const DEFAULT_ASSIST_MODEL = "gpt-4o-mini";
+
+/** What the browser is allowed to know. The API key is never included. */
+export interface AssistStatus {
+  /** An endpoint and model have been saved. A key is not required. */
+  configured: boolean;
+  hasKey: boolean;
+  baseUrl: string;
+  model: string;
+}
+
+export interface AssistAnswer {
+  id: string;
+  kind: AssistKindName;
+  question: string | null;
+  answer: string;
+  model: string;
+  updatedAt: string;
+}
+
+export interface DocumentAssist {
+  summary: AssistAnswer | null;
+  outline: AssistAnswer | null;
+  questions: AssistAnswer[];
+  explanations: Record<string, AssistAnswer>;
 }

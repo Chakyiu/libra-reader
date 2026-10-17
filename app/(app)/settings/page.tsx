@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { SettingsView } from "@/components/settings/settings-view";
-import { getLibraryStats, getPreferences } from "@/lib/queries";
+import { SettingsPanel } from "@/components/settings/settings-view";
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default async function SettingsPage() {
-  const [preferences, stats] = await Promise.all([getPreferences(), getLibraryStats()]);
-  return <SettingsView preferences={preferences} stats={stats} />;
+/** On a wide screen this is Appearance beside the menu. On a phone the menu hides it. */
+export default function SettingsPage() {
+  return <SettingsPanel section="appearance" />;
 }
