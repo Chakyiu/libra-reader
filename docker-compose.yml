@@ -3,7 +3,7 @@
 #   docker compose up --build
 #   open http://localhost:3000
 #
-# Data lives in the libra-data volume, separate from the ./data folder used by
+# Data lives in the libra-reader-data volume, separate from the ./data folder used by
 # `npm run dev`. LIBRA_SEED=0 starts with an empty library. LIBRA_SEED=1 (the
 # default) adds the sample library only when the database is empty.
 #
@@ -14,7 +14,7 @@
 # volume below with:  - ./data:/data
 
 services:
-  libra:
+  libra-reader:
     build: .
     image: libra-reader
     init: true
@@ -28,7 +28,7 @@ services:
       LIBRA_SEED: ${LIBRA_SEED:-1}
       TZ: ${TZ:-UTC}
     volumes:
-      - libra-data:/data
+      - libra-reader-data:/data
     restart: unless-stopped
     healthcheck:
       test:
@@ -44,4 +44,4 @@ services:
       start_period: 20s
 
 volumes:
-  libra-data:
+  libra-reader-data:
