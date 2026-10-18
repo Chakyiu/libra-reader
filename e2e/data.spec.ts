@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { buildSampleEpub, buildSamplePdf } from "../lib/samples";
+import { expectReaderOpen } from "./helpers";
 
 test("uploads a PDF and an EPUB, rejects a disguised file, and opens the upload", async ({ page }) => {
   const pdf = buildSamplePdf({ title: "Uploaded Field Guide", author: "Test Author" }, [
@@ -25,7 +26,7 @@ test("uploads a PDF and an EPUB, rejects a disguised file, and opens the upload"
   await page.getByRole("link", { name: "Field guide", exact: true }).click();
   await expect(page.getByText("of 2")).toBeVisible();
   // First open reads the PDF's own metadata and replaces the filename-derived title.
-  await expect(page.getByRole("heading", { level: 1, name: "Uploaded Field Guide" })).toBeVisible();
+  await expectReaderOpen(page, "Uploaded Field Guide");
 
   await page.goto("/library");
   await page.getByRole("button", { name: /^Add content/ }).click();

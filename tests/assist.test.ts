@@ -1,6 +1,7 @@
 import type { LookupAddress } from "node:dns";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ASSIST_TEXT_LIMIT, AssistError, buildAssistMessages, completeChat, readChatContent, setAssistTransportForTests } from "@/lib/assist";
+import { buildPromptMessages, fillAssistPrompt } from "@/lib/assist-prompt";
 import {
   assistAddressClass,
   chatCompletionsUrl,
@@ -13,7 +14,7 @@ import { assertUrlAllowed, BlockedDestinationError } from "@/lib/ssrf";
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const { db } = await import("@/lib/db");
-const { clearAssistConfig, runAssist, saveAssistConfig } = await import("@/lib/actions/assist");
+const { applyAssistPrompt, clearAssistConfig, deleteAssistPrompt, runAssist, saveAssistConfig, saveAssistPrompt } = await import("@/lib/actions/assist");
 const { getAssistStatus } = await import("@/lib/queries");
 const { GET: exportLibrary } = await import("@/app/api/export/route");
 
@@ -153,6 +154,7 @@ describe("assist configuration", () => {
     await db.assistConfig.deleteMany();
     await db.highlight.deleteMany();
     await db.document.deleteMany();
+    await db.assistPrompt.deleteMany({ where: { id: { notIn: ["prompt_explain", "prompt_note"] } } });
   });
 
   afterEach(() => setAssistTransportForTests(null));
@@ -180,6 +182,7 @@ describe("assist configuration", () => {
     const body = await exported.text();
     expect(body).not.toContain(KEY);
     expect(body).toContain('"assist"');
+    expect(body).toContain('"prompts"');
 
     const cleared = await clearAssistConfig();
     expect(cleared.ok && cleared.data.configured && !cleared.data.hasKey).toBe(true);
@@ -263,5 +266,54 @@ describe("assist configuration", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toMatch(/Settings/);
+  });
+
+  it("fills the passage, title, and author, then saves the answer as the note", async () => {
+    expect(fillAssistPrompt("{{ title }} by {{author}}\n\n{{ content }}", { title: "On walking", author: "Ada", content: "not a street" })).toBe(
+      "On walking by Ada\n\nnot a street",
+    );
+    expect(fillAssistPrompt("Summarize.", { title: "On walking", author: "", content: "not a street" })).toBe(
+      "Summarize.\n\nHighlighted passage:\nnot a street",
+    );
+    const built = buildPromptMessages({ template: "{{title}}|{{author}}|{{content}}", title: "On walking", author: "Ada", content: "not a street" });
+    expect(built.messages[1]?.content).toBe("On walking|Ada|not a street");
+
+    const doc = await db.document.create({
+      data: {
+        type: "NOTE",
+        title: "On walking",
+        author: "Ada Lovelace",
+        contentText: "not a street. SECRET TRAILING SENTENCE should stay on the device.",
+        wordCount: 12,
+      },
+    });
+    const highlight = await db.highlight.create({
+      data: { documentId: doc.id, quote: "not a street", startOffset: 0, endOffset: 12 },
+    });
+    await saveAssistConfig({ baseUrl: "http://127.0.0.1:11434/v1", model: "llama3.2", apiKey: "" });
+    const prompt = await saveAssistPrompt({ name: "Claim", body: "Note this.\n\n{{title}} by {{author}}\n\n{{content}}" });
+    expect(prompt.ok).toBe(true);
+    if (!prompt.ok) return;
+
+    let posted = "";
+    let authorization: string | undefined;
+    setAssistTransportForTests(async (request) => {
+      posted = request.body;
+      authorization = request.headers.authorization;
+      return { status: 200, text: JSON.stringify({ choices: [{ message: { content: "The street fails people on foot." } }], model: "llama3.2" }) };
+    });
+    const written = await applyAssistPrompt({ highlightId: highlight.id, promptId: prompt.data.id });
+    expect(written.ok && written.data.note).toBe("The street fails people on foot.");
+    expect(posted).toContain("On walking");
+    expect(posted).toContain("Ada Lovelace");
+    expect(posted).toContain("not a street");
+    expect(posted).not.toContain("SECRET TRAILING SENTENCE");
+    expect(authorization).toBeUndefined();
+    const stored = await db.highlight.findUnique({ where: { id: highlight.id } });
+    expect(stored?.note).toBe("The street fails people on foot.");
+    expect(await db.assistNote.count({ where: { highlightId: highlight.id, kind: "PROMPT" } })).toBe(1);
+
+    const removed = await deleteAssistPrompt(prompt.data.id);
+    expect(removed.ok).toBe(true);
   });
 });

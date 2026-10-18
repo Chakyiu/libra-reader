@@ -673,6 +673,88 @@
   line-height: 0;
 }
 
+/* PDF text layer. The spans sit over the canvas with transparent ink so the
+   painted page shows through, and a selection can become a highlight. */
+.pdf-page {
+  --user-unit: 1;
+  --total-scale-factor: calc(var(--scale-factor) * var(--user-unit));
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+  position: relative;
+  margin-inline: auto;
+  background: white;
+}
+.pdf-page .textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  transform-origin: 0 0;
+  z-index: 1;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.pdf-page .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+.pdf-page .textLayer > :not(.markedContent),
+.pdf-page .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.pdf-page .textLayer .markedContent {
+  display: contents;
+}
+.pdf-page .textLayer ::selection {
+  background: color-mix(in srgb, var(--terracotta) 42%, transparent);
+  color: transparent;
+}
+.pdf-page .textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+}
+.pdf-page .textLayer.selecting .endOfContent {
+  top: 0;
+}
+/* The page canvas is white paper in both themes, so the wash stays light and translucent. */
+.pdf-page .textLayer mark.hl {
+  --hl-c: oklch(0.9 0.1 96);
+  color: transparent;
+  background: color-mix(in srgb, var(--hl-c) 70%, transparent);
+}
+.pdf-page .textLayer mark.hl[data-color="SAGE"] {
+  --hl-c: oklch(0.88 0.06 152);
+}
+.pdf-page .textLayer mark.hl[data-color="BLUE"] {
+  --hl-c: oklch(0.88 0.05 250);
+}
+.pdf-page .textLayer mark.hl[data-color="BLUSH"] {
+  --hl-c: oklch(0.88 0.06 20);
+}
+.pdf-page .textLayer mark.hl[data-note="true"] {
+  border-bottom-color: color-mix(in srgb, #1a150e 45%, transparent);
+}
+.pdf-page .textLayer mark.hl:hover,
+.pdf-page .textLayer mark.hl[data-active="true"] {
+  background: color-mix(in srgb, var(--hl-c) 85%, transparent);
+}
+
 /* highlights painted into the article */
 mark.hl {
   --hl-c: var(--hl-yellow);
@@ -722,6 +804,55 @@ mark.hl.hl-flash {
   mark.hl.hl-flash {
     animation: none;
     outline: 2px solid var(--terracotta);
+  }
+}
+
+/* An EPUB chapter lives in its own frame, so a highlight there can't be a text
+   mark — epub.js draws one SVG group per highlight over the frame, in this
+   document. Same four swatches, translucent enough to read through. */
+g.libra-hl {
+  fill: var(--hl-yellow);
+  fill-opacity: 0.62;
+  /* epub.js draws marks with multiply, which vanishes on a dark page. */
+  mix-blend-mode: normal;
+}
+g.libra-hl[data-color="SAGE"] {
+  fill: var(--hl-sage);
+}
+g.libra-hl[data-color="BLUE"] {
+  fill: var(--hl-blue);
+}
+g.libra-hl[data-color="BLUSH"] {
+  fill: var(--hl-blush);
+}
+/* The dotted rule that a text mark gets when a note hangs off it. */
+g.libra-hl[data-has-note="true"] {
+  stroke: color-mix(in oklab, var(--ink) 55%, transparent);
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+g.libra-hl:hover,
+g.libra-hl[data-active="true"] {
+  fill-opacity: 0.85;
+}
+g.libra-hl.hl-flash {
+  animation: hl-flash-svg 1.5s ease;
+}
+@keyframes hl-flash-svg {
+  0%,
+  55% {
+    filter: drop-shadow(0 0 5px var(--terracotta));
+  }
+  100% {
+    filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  g.libra-hl.hl-flash {
+    animation: none;
+    stroke: var(--terracotta);
+    stroke-width: 1.5;
+    stroke-dasharray: none;
   }
 }
 

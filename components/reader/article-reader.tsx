@@ -23,20 +23,21 @@ import { Copy, ExternalLink, NotebookPen, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { ColorChips } from "@/components/highlights/color-chips";
 import { NoteDialog, type NoteDraft } from "@/components/highlights/note-dialog";
-import { AnnotationsList, DocumentFacts } from "@/components/reader/annotations-panel";
-import { AssistPanel, ExplainPassage, assistRevision } from "@/components/reader/assist-panel";
+import { AnnotationsAside, AnnotationsPanelBody, AnnotationsSheet } from "@/components/reader/annotations-column";
+import { ExplainPassage } from "@/components/reader/assist-panel";
+import { AssistPromptMenu } from "@/components/reader/assist-prompt-menu";
 import { SelectionToolbar, type SelectionRect } from "@/components/reader/selection-toolbar";
 import { usePositionSaver } from "@/components/reader/use-position-saver";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
-import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { offsetsToRange, rangeToOffsets, textOffsetOf, unwrapHighlights, wrapOffsets } from "@/lib/anchoring/dom-anchor";
 import { anchorSelector, describeTextRange, surroundingSentence } from "@/lib/anchoring/text-anchor";
+import { applyAssistPrompt } from "@/lib/actions/assist";
 import { createHighlight, deleteHighlight, updateHighlight } from "@/lib/actions/highlights";
 import { formatMinutes, TYPE_LABEL } from "@/lib/format";
 import type { HighlightColor } from "@/lib/generated/prisma/enums";
 import { isOverlayOpen, isTypingTarget } from "@/lib/shortcuts";
-import type { DocumentAssist, HighlightItem, Preferences, ReaderDocument } from "@/lib/types";
+import type { AssistPromptItem, DocumentAssist, HighlightItem, Preferences, ReaderDocument } from "@/lib/types";
 import { MAX_QUOTE_LENGTH, type ReadingLocation } from "@/lib/validation";
 
 const TOOLBAR_HEIGHT = 56;
@@ -105,6 +106,7 @@ export function ArticleReader({
   preferences,
   assist,
   assistConfigured,
+  prompts,
   focusHighlightId,
   panelOpen,
   annotationsOpen,
@@ -118,6 +120,7 @@ export function ArticleReader({
   preferences: Preferences;
   assist: DocumentAssist;
   assistConfigured: boolean;
+  prompts: AssistPromptItem[];
   focusHighlightId?: string;
   panelOpen: boolean;
   annotationsOpen: boolean;
@@ -134,6 +137,7 @@ export function ArticleReader({
   const [orphanIds, setOrphanIds] = useState<Set<string>>(() => new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editing, setEditing] = useState<NoteDraft | null>(null);
+  const [writtenNotes, setWrittenNotes] = useState<Record<string, { answer: string; model: string }>>({});
   const headings = doc.headings;
   const [activeHeading, setActiveHeading] = useState<string | null>(null);
   const pointerDown = useRef(false);
@@ -142,6 +146,7 @@ export function ArticleReader({
 
   const sorted = useMemo(() => [...optimistic].sort((a, b) => a.startOffset - b.startOffset), [optimistic]);
   const activeHighlight = activeId ? (optimistic.find((h) => h.id === activeId) ?? null) : null;
+  const promptNotes = { ...assist.promptNotes, ...writtenNotes };
 
   // useOptimistic hands back a new array on every render while an action is
   // pending, so painting is keyed on content rather than array identity.
@@ -294,8 +299,9 @@ export function ArticleReader({
       if (pointerDown.current) return;
       const selected = window.getSelection();
       const toolbarFocused = document.activeElement?.closest("[data-selection-toolbar]");
+      const promptMenuOpen = document.querySelector("[data-assist-prompt-menu][data-state=open]");
       if (!selected || selected.rangeCount === 0 || selected.isCollapsed) {
-        if (!toolbarFocused) setSelection(null);
+        if (!toolbarFocused && !promptMenuOpen) setSelection(null);
         return;
       }
       const range = selected.getRangeAt(0);
@@ -343,7 +349,7 @@ export function ArticleReader({
 
   /* ---- highlight mutations (optimistic) ---- */
   const createFromSelection = useCallback(
-    (color: HighlightColor, withNote: boolean) => {
+    (color: HighlightColor, withNote: boolean, promptId?: string) => {
       const root = bodyRef.current;
       if (!root || !selection) return;
       if (selection.end - selection.start > MAX_QUOTE_LENGTH) {
@@ -365,6 +371,8 @@ export function ArticleReader({
         context,
         startOffset: selector.start,
         endOffset: selector.end,
+        page: null,
+        cfi: null,
         color,
         note: null,
         createdAt: now,
@@ -386,11 +394,44 @@ export function ArticleReader({
           toast.error(result.error);
           return;
         }
+        if (promptId) {
+          const written = await applyAssistPrompt({ highlightId: result.data.id, promptId });
+          if (!written.ok) {
+            toast.error(written.error);
+            return;
+          }
+          applyOptimistic({ type: "update", id: result.data.id, patch: { note: written.data.note } });
+          setWrittenNotes((current) => ({
+            ...current,
+            [result.data.id]: { answer: written.data.note, model: written.data.model },
+          }));
+          toast("Note written");
+          return;
+        }
         if (withNote) setEditing(toDraft(result.data));
         else toast("Highlighted", { action: { label: "Add a note", onClick: () => setEditing(toDraft(result.data)) } });
       });
     },
     [applyOptimistic, doc.id, selection],
+  );
+
+  const runPrompt = useCallback(
+    (highlightId: string, promptId: string) => {
+      startTransition(async () => {
+        const written = await applyAssistPrompt({ highlightId, promptId });
+        if (!written.ok) {
+          toast.error(written.error);
+          return;
+        }
+        applyOptimistic({ type: "update", id: highlightId, patch: { note: written.data.note } });
+        setWrittenNotes((current) => ({
+          ...current,
+          [highlightId]: { answer: written.data.note, model: written.data.model },
+        }));
+        toast("Note written");
+      });
+    },
+    [applyOptimistic],
   );
 
   const update = useCallback(
@@ -440,6 +481,7 @@ export function ArticleReader({
                   context: highlight.context,
                   startOffset: highlight.startOffset,
                   endOffset: highlight.endOffset,
+                  page: highlight.page ?? undefined,
                   color: highlight.color,
                   note: highlight.note ?? undefined,
                 });
@@ -519,31 +561,19 @@ export function ArticleReader({
 
   const length = doc.readingMinutes ? formatMinutes(doc.readingMinutes) : null;
   const panel = (
-    <>
-      <div className="mb-5 flex items-baseline gap-2">
-        <h2 className="caps">Annotations</h2>
-        <span className="count">{optimistic.length}</span>
-      </div>
-      <AnnotationsList
-        highlights={sorted}
-        orphanIds={orphanIds}
-        onJump={(id) => jumpTo(id)}
-        onEdit={(id) => {
-          const highlight = optimistic.find((h) => h.id === id);
-          if (highlight) setEditing(toDraft(highlight));
-        }}
-      />
-      <hr className="my-6 border-border" />
-      <DocumentFacts document={doc} onAddTag={onAddTag} />
-      <hr className="my-6 border-border" />
-      <AssistPanel
-        key={assistRevision(assist)}
-        documentId={doc.id}
-        wordCount={doc.wordCount}
-        assist={assist}
-        configured={assistConfigured}
-      />
-    </>
+    <AnnotationsPanelBody
+      document={doc}
+      highlights={sorted}
+      orphanIds={orphanIds}
+      onJump={(id) => jumpTo(id)}
+      onEdit={(id) => {
+        const highlight = optimistic.find((h) => h.id === id);
+        if (highlight) setEditing(toDraft(highlight));
+      }}
+      onAddTag={onAddTag}
+      assist={assist}
+      assistConfigured={assistConfigured}
+    />
   );
 
   return (
@@ -618,31 +648,23 @@ export function ArticleReader({
           </article>
         </div>
 
-        {panelOpen && (
-          <aside
-            aria-label="Annotations"
-            className="sticky top-14 hidden max-h-[calc(100dvh-56px)] self-start overflow-y-auto border-l border-border bg-surface px-[26px] pt-[30px] pb-16 xl:block"
-          >
-            {panel}
-          </aside>
-        )}
+        {panelOpen && <AnnotationsAside body={panel} />}
       </div>
 
-      <Sheet open={annotationsOpen} onOpenChange={onAnnotationsOpenChange}>
-        <SheetContent side="bottom" aria-describedby={undefined}>
-          <SheetHeader>
-            <SheetTitle>Annotations</SheetTitle>
-            <span className="caps">{optimistic.length}</span>
-          </SheetHeader>
-          <SheetBody>{panel}</SheetBody>
-        </SheetContent>
-      </Sheet>
+      <AnnotationsSheet
+        open={annotationsOpen}
+        onOpenChange={onAnnotationsOpenChange}
+        count={optimistic.length}
+        body={panel}
+      />
 
       {selection && !activeId && !editing && (
         <SelectionToolbar
           rect={selection.rect}
+          prompts={prompts}
           onHighlight={(color) => createFromSelection(color, false)}
           onNote={() => createFromSelection("YELLOW", true)}
+          onPrompt={(promptId) => createFromSelection("YELLOW", false, promptId)}
           onCopy={() => {
             void copy(selection.text);
             window.getSelection()?.removeAllRanges();
@@ -658,7 +680,12 @@ export function ArticleReader({
             <h3 className="caps mb-3">Highlight</h3>
             <p className="mb-3.5 line-clamp-4 font-serif text-[15px] leading-[1.55] whitespace-pre-line">{activeHighlight.quote}</p>
             {activeHighlight.note ? (
-              <p className="mb-4 border-l-2 border-terracotta/60 pl-4 text-[13.5px] text-muted-foreground italic">{activeHighlight.note}</p>
+              <div className="mb-4">
+                <p className="border-l-2 border-terracotta/60 pl-4 text-[13.5px] text-muted-foreground italic">{activeHighlight.note}</p>
+                {promptNotes[activeHighlight.id]?.answer === activeHighlight.note && (
+                  <p className="mt-1.5 text-[11.5px] text-muted-foreground">Generated · {promptNotes[activeHighlight.id]?.model}</p>
+                )}
+              </div>
             ) : (
               <p className="mb-4 text-[13px] text-muted-foreground">No note on this one yet.</p>
             )}
@@ -672,7 +699,7 @@ export function ArticleReader({
               initial={assist.explanations[activeHighlight.id] ?? null}
               configured={assistConfigured}
             />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 size="sm"
                 onClick={() => {
@@ -683,6 +710,11 @@ export function ArticleReader({
                 <NotebookPen />
                 {activeHighlight.note ? "Edit note" : "Add note"}
               </Button>
+              <AssistPromptMenu
+                variant="field"
+                prompts={prompts}
+                onSelect={(promptId) => runPrompt(activeHighlight.id, promptId)}
+              />
               <Button variant="ghost" size="icon-sm" aria-label="Copy passage" onClick={() => void copy(activeHighlight.quote)}>
                 <Copy />
               </Button>
@@ -696,6 +728,7 @@ export function ArticleReader({
 
       <NoteDialog
         highlight={editing}
+        prompts={prompts}
         onOpenChange={(open) => !open && setEditing(null)}
         onSave={(id, patch) => update(id, patch)}
         onDelete={remove}

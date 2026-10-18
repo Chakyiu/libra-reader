@@ -21,9 +21,10 @@ export function HighlightCard({
         </span>
       </p>
       {highlight.note && (
-        <p className="mt-4 border-l-2 border-terracotta/60 pl-4 text-[13.5px] leading-relaxed text-muted-foreground italic">
-          {highlight.note}
-        </p>
+        <div className="mt-4">
+          <p className="border-l-2 border-terracotta/60 pl-4 text-[13.5px] leading-relaxed text-muted-foreground italic">{highlight.note}</p>
+          {highlight.generatedModel && <p className="mt-1.5 text-[11.5px] text-muted-foreground">Generated · {highlight.generatedModel}</p>}
+        </div>
       )}
       {extra}
       <div className="mt-[18px] flex flex-wrap items-center gap-x-[9px] gap-y-2 text-[12.5px] text-muted-foreground">

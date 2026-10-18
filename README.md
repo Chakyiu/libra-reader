@@ -47,10 +47,10 @@ The port is published on `127.0.0.1` only. Libra has no login, so don't publish 
   - *Paste a URL.* The server fetches the page, extracts the article with Readability, sanitizes it, estimates reading time, and shows a preview before saving. If extraction fails you can retry or save the link only; nothing is ever invented.
   - *Upload a PDF or EPUB* (up to 50 MB). Files are checked by their bytes, stored outside `/public`, and served through `/api/files/[id]`.
   - *Write a note.* An editable title and body.
-- **Reader:** a centred column, table of contents, progress bar, reading position restored by text offset (it survives font and width changes), and display controls for typeface, size, line spacing, column width, and theme. Favorite, archive, tag, and collection actions are in the toolbar, and a collapsible annotations panel sits alongside.
-- **Highlights:** select text to get a floating toolbar (four named colours, add note, copy). Highlights span paragraphs safely, survive reloads, and can be recoloured, annotated, or deleted (with Undo). The Highlights page offers search, filters, links back to each passage, and a one-at-a-time review mode.
+- **Reader:** a centred column, table of contents, progress bar, reading position restored by text offset (it survives font and width changes), and display controls for typeface, size, line spacing, column width, and theme. Favorite, archive, tag, and collection actions are in the toolbar, and a collapsible annotations panel sits alongside in every reader. Press `]` to open or hide it.
+- **Highlights:** select text to get a floating toolbar (four named colours, add note, copy). Works in articles, notes, PDF pages, and EPUB chapters. Highlights span paragraphs safely, survive reloads, and can be recoloured, annotated, or deleted (with Undo). The Highlights page offers search, filters, links back to each passage, and a one-at-a-time review mode.
 - **Assist:** summarize a document, outline it, explain a highlight, or ask a question about the passage. Connect an OpenAI-compatible host in Settings — OpenAI, or a local server such as Ollama at `http://127.0.0.1:11434/v1`. The key stays in the database, is never sent to the browser, and is left out of JSON export. Answers are labeled as generated and saved with the document. Long documents are shortened, and the model is told to stay with the text it was given.
-- **PDF and EPUB:** PDF.js renders PDFs page by page with zoom and saves the page you were on. epub.js renders EPUBs with chapter navigation and saves your location. Embedded scripts, forms, and links inside files stay inactive.
+- **PDF and EPUB:** PDF.js renders PDFs with zoom and saves the page you were on. epub.js renders EPUBs with chapter navigation and saves your location. Both can flip one page at a time or scroll to the next. Select text in either one to highlight it, and both carry the same annotations list, document facts, and Assist panel as the article reader. In an EPUB the highlight is drawn over the chapter and returns to the same passage when the text reflows or you turn back to it. Embedded scripts, forms, and links inside files stay inactive.
 - **Search:** across titles, authors, extracted article and book text, highlights, and notes, with grouped results and marked snippets.
 - **Settings:** theme (light, dark, or follow the system), reading defaults with a live preview, a keyboard shortcut reference (press `?` anywhere), the Assist model connection, a JSON export of everything, and installing Libra as an app.
 - **Installed app:** add Libra to the dock or home screen and it opens in its own window. Chrome and Edge show an Install button in Settings when the browser allows it. Pages are loaded from the local server; if that server is stopped, the window explains that instead of showing a broken page.
@@ -117,7 +117,7 @@ e2e/                    Playwright
 desgin/                 The approved design comps and brand spec this UI follows
 ```
 
-Highlights are anchored like W3C Web Annotation selectors. Each one stores the quote, 32 characters of context on each side, and character offsets. On load, Libra tries the offsets, then searches for the quote and ranks matches by context, then retries with whitespace normalized. If a passage can no longer be found, the highlight is listed as missing rather than attached to the wrong text.
+Highlights are anchored like W3C Web Annotation selectors. Each one stores the quote, 32 characters of context on each side, and character offsets. On load, Libra tries the offsets, then searches for the quote and ranks matches by context, then retries with whitespace normalized. If a passage can no longer be found, the highlight is listed as missing rather than attached to the wrong text. A PDF highlight carries its page number and offsets inside that page's text layer, and is re-anchored by quote when the page is rendered again at another zoom. An EPUB highlight carries an epub.js book location (a CFI range) instead, and is drawn as an SVG mark over the chapter, so it survives reflow and page turns.
 
 ## Testing
 
@@ -127,11 +127,11 @@ npx playwright install chromium  # once
 npm run test:e2e                 # builds, seeds a throwaway database in .tmp/e2e, serves on :3200
 ```
 
-Unit tests cover validation, sanitization, SSRF checks, the redirect and size limits of the fetcher, highlight anchoring (string and DOM), article extraction, upload detection, and collection deletion. End-to-end tests cover saving a note, creating a collection, highlighting with a note, reload persistence, archive and restore, search, the mobile reader, uploads, bulk actions, export, shortcuts, and a check that core pages log no console errors. Set `PW_CHANNEL=chrome` to run them in your installed Chrome. `E2E_REBUILD=1` forces a fresh build.
+Unit tests cover validation, sanitization, SSRF checks, the redirect and size limits of the fetcher, highlight anchoring (string and DOM), the rules for which document types may hold a page or a book location, article extraction, upload detection, and collection deletion. End-to-end tests cover saving a note, creating a collection, highlighting with a note, reload persistence, the annotation list in the PDF and EPUB readers, archive and restore, search, the mobile reader, uploads, bulk actions, export, shortcuts, and a check that core pages log no console errors. Set `PW_CHANNEL=chrome` to run them in your installed Chrome. `E2E_REBUILD=1` forces a fresh build.
 
 ## Known limitations
 
-- PDFs and EPUBs can't be highlighted or text-selected yet, and there is no OCR. The reader says so.
+- There is no OCR. Scanned PDF pages have no selectable text, and a DRM-protected EPUB has no text to select either. The reader says so.
 - Search uses substring matching (case-insensitive for ASCII), not ranked full-text search.
 - Reading preferences are global, not per document.
 - The library view shows up to 1,000 documents at a time; there is no pagination yet.

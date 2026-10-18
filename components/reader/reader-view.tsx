@@ -30,7 +30,6 @@ import { toast } from "sonner";
 import { CollectionDialog, DeleteDocumentsDialog, TagDialog } from "@/components/documents/document-dialogs";
 import { useDocumentCommands } from "@/components/documents/use-document-commands";
 import { ArticleReader } from "@/components/reader/article-reader";
-import { AssistPanel, assistRevision } from "@/components/reader/assist-panel";
 import { DisplayControls } from "@/components/reader/display-controls";
 import { DocumentDetailsDialog } from "@/components/reader/document-details-dialog";
 import { NoteEditor } from "@/components/reader/note-editor";
@@ -50,7 +49,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { retryImport } from "@/lib/actions/import";
 import { TYPE_LABEL } from "@/lib/format";
 import { isOverlayOpen, isTypingTarget } from "@/lib/shortcuts";
-import type { CollectionSummary, DocumentAssist, HighlightItem, Preferences, ReaderDocument } from "@/lib/types";
+import type { AssistPromptItem, CollectionSummary, DocumentAssist, HighlightItem, Preferences, ReaderDocument } from "@/lib/types";
 
 function ReaderLoading({ label }: { label: string }) {
   return (
@@ -159,6 +158,7 @@ export function ReaderView({
   preferences: initialPreferences,
   assist,
   assistConfigured,
+  prompts,
   focusHighlightId,
 }: {
   document: ReaderDocument;
@@ -168,6 +168,7 @@ export function ReaderView({
   preferences: Preferences;
   assist: DocumentAssist;
   assistConfigured: boolean;
+  prompts: AssistPromptItem[];
   focusHighlightId?: string;
 }) {
   const router = useRouter();
@@ -181,14 +182,22 @@ export function ReaderView({
   const [dialog, setDialog] = useState<"tag" | "collection" | "delete" | "details" | null>(null);
   const [editingNote, setEditingNote] = useState(false);
   const [barHidden, setBarHidden] = useState(false);
-  const [assistOpen, setAssistOpen] = useState(false);
 
   const isArticle = Boolean(document.contentHtml) && (document.type === "ARTICLE" || document.type === "NOTE");
+  // Articles, PDFs and EPUBs are all read in place, so all three keep a passage
+  // list; a link goes off-site, where there is nothing to anchor to.
+  const annotable = isArticle || document.type === "PDF" || document.type === "EPUB";
   const archived = document.status === "ARCHIVED";
   const backHref = archived ? "/library?status=archived" : "/library";
   const crumb = document.collections[0]?.name ?? "Library";
 
   const togglePanel = () => setPanelOpen(!panelOpen);
+
+  /** Assist always lands in the panel, so open it rather than flip it. */
+  const openAnnotations = () => {
+    if (window.matchMedia("(min-width: 1180px)").matches) setPanelOpen(true);
+    else setAnnotationsOpen(true);
+  };
 
   const toggleArchive = () => (archived ? commands.restore([document.id], document.title) : commands.archive([document.id], document.title));
 
@@ -222,7 +231,7 @@ export function ReaderView({
       const key = event.key.toLowerCase();
       if (key === "f") commands.toggleFavorite([document.id], !document.isFavorite, document.title);
       else if (key === "e") toggleArchive();
-      else if (event.key === "]" && isArticle) showAnnotations();
+      else if (event.key === "]" && annotable) showAnnotations();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -290,18 +299,7 @@ export function ReaderView({
           {archived ? <ArchiveRestore /> : <Archive />}
         </IconAction>
         {document.wordCount > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (!isArticle) {
-                setAssistOpen(true);
-                return;
-              }
-              if (window.matchMedia("(min-width: 1180px)").matches) setPanelOpen(true);
-              else setAnnotationsOpen(true);
-            }}
-          >
+          <Button variant="outline" size="sm" onClick={openAnnotations}>
             <Sparkles />
             Assist
           </Button>
@@ -324,6 +322,10 @@ export function ReaderView({
             <Button variant="quiet" size="icon" className="lg:hidden" aria-label="Reading settings" onClick={() => setDisplaySheetOpen(true)}>
               <Type />
             </Button>
+          </>
+        )}
+        {annotable && (
+          <>
             <IconAction label={panelOpen ? "Hide annotations" : "Show annotations"} pressed={panelOpen} onClick={togglePanel} className="max-xl:hidden">
               <PanelRight />
             </IconAction>
@@ -399,6 +401,7 @@ export function ReaderView({
           preferences={preferences}
           assist={assist}
           assistConfigured={assistConfigured}
+          prompts={prompts}
           focusHighlightId={focusHighlightId}
           panelOpen={panelOpen}
           annotationsOpen={annotationsOpen}
@@ -408,30 +411,36 @@ export function ReaderView({
           endcap={endcap}
         />
       ) : document.type === "PDF" ? (
-        <PdfReader document={document} progressLineRef={progressLine} />
+        <PdfReader
+          document={document}
+          highlights={highlights}
+          prompts={prompts}
+          focusHighlightId={focusHighlightId}
+          progressLineRef={progressLine}
+          panelOpen={panelOpen}
+          annotationsOpen={annotationsOpen}
+          onAnnotationsOpenChange={setAnnotationsOpen}
+          assist={assist}
+          assistConfigured={assistConfigured}
+          onAddTag={() => setDialog("tag")}
+        />
       ) : document.type === "EPUB" ? (
-        <EpubReader document={document} progressLineRef={progressLine} />
+        <EpubReader
+          document={document}
+          highlights={highlights}
+          prompts={prompts}
+          focusHighlightId={focusHighlightId}
+          progressLineRef={progressLine}
+          panelOpen={panelOpen}
+          annotationsOpen={annotationsOpen}
+          onAnnotationsOpenChange={setAnnotationsOpen}
+          assist={assist}
+          assistConfigured={assistConfigured}
+          onAddTag={() => setDialog("tag")}
+        />
       ) : (
         <LinkOnlyPanel document={document} />
       )}
-
-      <Sheet open={assistOpen} onOpenChange={setAssistOpen}>
-        <SheetContent side="bottom" aria-describedby={undefined}>
-          <SheetHeader>
-            <SheetTitle>Assist</SheetTitle>
-          </SheetHeader>
-          <SheetBody className="pb-[max(2rem,env(safe-area-inset-bottom))]">
-            <AssistPanel
-              key={assistRevision(assist)}
-              documentId={document.id}
-              wordCount={document.wordCount}
-              assist={assist}
-              configured={assistConfigured}
-              showHeading={false}
-            />
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
 
       <Sheet open={displaySheetOpen} onOpenChange={setDisplaySheetOpen}>
         <SheetContent side="bottom" aria-describedby={undefined}>

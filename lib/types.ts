@@ -93,6 +93,10 @@ export interface HighlightItem {
   context: string;
   startOffset: number;
   endOffset: number;
+  /** 1-based PDF page. Null for articles and notes. */
+  page: number | null;
+  /** epubcfi range for an EPUB highlight. Null everywhere else. */
+  cfi: string | null;
   color: HighlightColor;
   note: string | null;
   createdAt: Date;
@@ -112,6 +116,8 @@ export interface HighlightWithSource extends HighlightItem {
   document: HighlightSource;
   /** A saved explanation of this passage, when the highlights page loaded one. */
   explanation?: { answer: string; model: string } | null;
+  /** Set when the note still matches a prompt's answer. */
+  generatedModel?: string | null;
 }
 
 export interface Preferences {
@@ -136,6 +142,10 @@ export interface SnippetSegment {
 }
 
 export type AssistKindName = "SUMMARY" | "OUTLINE" | "QUESTION" | "EXPLAIN";
+
+export function isAssistAnswerKind(kind: string): kind is AssistKindName {
+  return kind === "SUMMARY" || kind === "OUTLINE" || kind === "QUESTION" || kind === "EXPLAIN";
+}
 
 export const DEFAULT_ASSIST_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_ASSIST_MODEL = "gpt-4o-mini";
@@ -163,4 +173,12 @@ export interface DocumentAssist {
   outline: AssistAnswer | null;
   questions: AssistAnswer[];
   explanations: Record<string, AssistAnswer>;
+  /** Latest prompt answer for a highlight, used to label the note when the text still matches. */
+  promptNotes: Record<string, { answer: string; model: string }>;
+}
+
+export interface AssistPromptItem {
+  id: string;
+  name: string;
+  body: string;
 }

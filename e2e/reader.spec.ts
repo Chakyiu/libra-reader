@@ -62,7 +62,7 @@ test("highlights across paragraphs and edits the colour from the text", async ({
   await expect(page.locator('mark.hl[data-color="BLUSH"]').first()).toBeVisible();
 
   await page.reload();
-  expect(await page.locator('mark.hl[data-color="BLUSH"]').count()).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => page.locator('mark.hl[data-color="BLUSH"]').count()).toBeGreaterThanOrEqual(2);
 });
 
 test("remembers the reading position", async ({ page }) => {

@@ -8,7 +8,9 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
 import { UrlSearchField } from "@/components/common/url-search-field";
 import { HighlightCard } from "@/components/highlights/highlight-card";
+import { applyAssistPrompt } from "@/lib/actions/assist";
 import { ExplainPassage } from "@/components/reader/assist-panel";
+import { AssistPromptMenu } from "@/components/reader/assist-prompt-menu";
 import { NoteDialog, type NoteDraft } from "@/components/highlights/note-dialog";
 import { ReviewDialog } from "@/components/highlights/review-dialog";
 import { MobileMenuButton } from "@/components/shell/mobile-nav";
@@ -16,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { createHighlight, deleteHighlight, updateHighlight } from "@/lib/actions/highlights";
 import { HIGHLIGHT_COLORS } from "@/lib/colors";
-import type { CollectionSummary, HighlightWithSource } from "@/lib/types";
+import type { AssistPromptItem, CollectionSummary, HighlightWithSource } from "@/lib/types";
 import type { HighlightFilters } from "@/lib/validation";
 
 export function HighlightsView({
@@ -27,6 +29,7 @@ export function HighlightsView({
   tags,
   collections,
   assistConfigured,
+  prompts,
 }: {
   highlights: HighlightWithSource[];
   total: number;
@@ -35,6 +38,7 @@ export function HighlightsView({
   tags: string[];
   collections: CollectionSummary[];
   assistConfigured: boolean;
+  prompts: AssistPromptItem[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -51,6 +55,14 @@ export function HighlightsView({
     else next.delete(key);
     const query = next.toString();
     return query ? `${pathname}?${query}` : pathname;
+  };
+
+  const runPrompt = (highlightId: string, promptId: string) => {
+    startTransition(async () => {
+      const result = await applyAssistPrompt({ highlightId, promptId });
+      if (!result.ok) toast.error(result.error);
+      else toast("Note written");
+    });
   };
 
   const replace = (key: string, value: string | undefined) => {
@@ -136,6 +148,7 @@ export function HighlightsView({
               context: highlight.context,
               startOffset: highlight.startOffset,
               endOffset: highlight.endOffset,
+              page: highlight.page ?? undefined,
               color: highlight.color,
               note: highlight.note ?? undefined,
             }).then((restored) => (restored.ok ? toast("Highlight restored") : toast.error(restored.error))),
@@ -242,13 +255,22 @@ export function HighlightsView({
               <HighlightCard
                 highlight={highlight}
                 extra={
-                  <ExplainPassage
-                    key={`${highlight.id}:${highlight.explanation?.answer ?? ""}`}
-                    documentId={highlight.document.id}
-                    highlightId={highlight.id}
-                    initial={highlight.explanation ?? null}
-                    configured={assistConfigured}
-                  />
+                  <>
+                    <div className="mt-4">
+                      <AssistPromptMenu
+                        variant="field"
+                        prompts={prompts}
+                        onSelect={(promptId) => runPrompt(highlight.id, promptId)}
+                      />
+                    </div>
+                    <ExplainPassage
+                      key={`${highlight.id}:${highlight.explanation?.answer ?? ""}`}
+                      documentId={highlight.document.id}
+                      highlightId={highlight.id}
+                      initial={highlight.explanation ?? null}
+                      configured={assistConfigured}
+                    />
+                  </>
                 }
                 actions={
                   <>
@@ -277,7 +299,7 @@ export function HighlightsView({
         highlights={highlights}
         onEditNote={(highlight) => setEditing({ id: highlight.id, quote: highlight.quote, note: highlight.note, color: highlight.color })}
       />
-      <NoteDialog highlight={editing} onOpenChange={(open) => !open && setEditing(null)} onSave={save} onDelete={remove} />
+      <NoteDialog highlight={editing} prompts={prompts} onOpenChange={(open) => !open && setEditing(null)} onSave={save} onDelete={remove} />
     </div>
   );
 }

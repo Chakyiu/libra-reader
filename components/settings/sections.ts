@@ -2,7 +2,7 @@ export const SETTINGS_SECTIONS = [
   { id: "appearance", label: "Appearance", description: "Theme for the library and the reader" },
   { id: "reading", label: "Reading", description: "Type, size, and the column" },
   { id: "shortcuts", label: "Shortcuts", description: "Keys for the library and the reader" },
-  { id: "assist", label: "Assist", description: "Summaries, outlines, and questions" },
+  { id: "assist", label: "Assist", description: "The model, and prompts for a highlight" },
   { id: "data", label: "Your data", description: "Export, install, and where files live" },
 ] as const;
 

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
 import { cn } from "cn";
 import { ChevronLeft, ChevronRight, Download, Monitor, Moon, Sun } from "lucide-react";
+import { AssistPromptSettings } from "@/components/settings/assist-prompts";
 import { AssistSettings } from "@/components/settings/assist-settings";
 import { SETTINGS_SECTIONS, type SettingsSectionId } from "@/components/settings/sections";
 import { ShortcutRow } from "@/components/shell/keyboard-shortcuts";
@@ -17,13 +18,14 @@ import type { ThemePreference } from "@/lib/generated/prisma/enums";
 import { plural } from "@/lib/format";
 import type { LibraryStats } from "@/lib/queries";
 import { GLOBAL_SHORTCUTS, READER_SHORTCUTS } from "@/lib/shortcuts";
-import type { AssistStatus, Preferences } from "@/lib/types";
+import type { AssistPromptItem, AssistStatus, Preferences } from "@/lib/types";
 
 const SettingsContext = createContext<{
   preferences: Preferences;
   change: (patch: Partial<Preferences>) => void;
   stats: LibraryStats;
   assist: AssistStatus;
+  prompts: AssistPromptItem[];
 } | null>(null);
 
 function useSettings() {
@@ -41,11 +43,13 @@ export function SettingsFrame({
   preferences: initial,
   stats,
   assist,
+  prompts,
   children,
 }: {
   preferences: Preferences;
   stats: LibraryStats;
   assist: AssistStatus;
+  prompts: AssistPromptItem[];
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -55,7 +59,7 @@ export function SettingsFrame({
   const title = onIndex ? "Settings" : (active?.label ?? "Settings");
 
   return (
-    <SettingsContext.Provider value={{ ...reader, stats, assist }}>
+    <SettingsContext.Provider value={{ ...reader, stats, assist, prompts }}>
       <div className="mx-auto w-full max-w-[960px] px-[22px] pt-4 pb-24 sm:px-[26px] sm:pt-8 lg:pt-11">
         <header>
           {!onIndex && (
@@ -152,7 +156,7 @@ const THEMES: Array<{ value: ThemePreference; label: string; icon: ReactNode; sw
 ];
 
 export function SettingsPanel({ section }: { section: SettingsSectionId }) {
-  const { preferences, change, stats, assist } = useSettings();
+  const { preferences, change, stats, assist, prompts } = useSettings();
   const preview = {
     "--read-size": `${preferences.fontSize}px`,
     "--read-lead": String(preferences.lineHeight),
@@ -229,9 +233,10 @@ export function SettingsPanel({ section }: { section: SettingsSectionId }) {
     return (
       <Section
         title="Assist"
-        lede="Summarize a document, outline it, explain a highlight, or ask a question. Libra sends that passage to the host below, and only when you ask. The key stays in this database."
+        lede="Summarize a document, outline it, explain a highlight, or ask a question. A highlight can also run a prompt and keep the answer as its note. Libra sends that passage to the host below, and only when you ask."
       >
         <AssistSettings status={assist} />
+        <AssistPromptSettings prompts={prompts} />
       </Section>
     );
   }
@@ -243,7 +248,7 @@ export function SettingsPanel({ section }: { section: SettingsSectionId }) {
     >
       <Row
         title="Export everything as JSON"
-        description={`Documents with their text and metadata, ${plural(stats.highlights, "highlight")} and notes, collections, tags, preferences, and Assist answers. The model API key is not included. Original PDF and EPUB files stay in the storage folder.`}
+        description={`Documents with their text and metadata, ${plural(stats.highlights, "highlight")} and notes, collections, tags, preferences, Assist answers, and Assist prompts. The model API key is not included. Original PDF and EPUB files stay in the storage folder.`}
       >
         <Button variant="outline" size="sm" asChild>
           <a href="/api/export" download>

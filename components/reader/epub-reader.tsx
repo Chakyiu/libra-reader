@@ -1,20 +1,60 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { cn } from "cn";
 import { ChevronLeft, ChevronRight, CircleAlert, Download, ListTree, LoaderCircle } from "lucide-react";
 import type { Book, Location, NavItem, Rendition } from "epubjs";
+import { NoteDialog } from "@/components/highlights/note-dialog";
+import { AnnotationsAside, AnnotationsPanelBody, AnnotationsSheet } from "@/components/reader/annotations-column";
+import { PageModeToggle, usePageMode } from "@/components/reader/page-mode";
+import { SelectionToolbar, type SelectionRect } from "@/components/reader/selection-toolbar";
+import { toDraft, useHighlightMutations } from "@/components/reader/use-highlight-mutations";
 import { usePositionSaver } from "@/components/reader/use-position-saver";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { rangeToOffsets } from "@/lib/anchoring/dom-anchor";
+import { describeTextRange, surroundingSentence } from "@/lib/anchoring/text-anchor";
 import { isOverlayOpen, isTypingTarget } from "@/lib/shortcuts";
-import type { ReaderDocument } from "@/lib/types";
+import type { AssistPromptItem, DocumentAssist, HighlightItem, ReaderDocument } from "@/lib/types";
+import type { HighlightColor } from "@/lib/generated/prisma/enums";
 
 function flatten(items: NavItem[], depth = 0): Array<NavItem & { depth: number }> {
   return items.flatMap((item) => [{ ...item, depth }, ...flatten(item.subitems ?? [], depth + 1)]);
 }
 
 const stripFragment = (href: string) => href.split("#")[0] ?? href;
+
+/** Class on the <g> epub.js draws for one highlight, so the stylesheet can colour it. */
+const MARK_CLASS = "libra-hl";
+
+/** The slice of an epub.js Contents this reader needs, without the library's loose types. */
+interface ChapterContents {
+  document: Document;
+  window: Window;
+  range: (cfi: string) => Range | null;
+}
+
+/** Where a highlight sits in the spine: "…/6/14[chapter]…" → 7. */
+function sectionOf(cfi: string): number {
+  const step = /\/6\/(\d+)/.exec(cfi)?.[1];
+  return step ? Number(step) / 2 - 1 : -1;
+}
+
+function contentsOf(rendition: Rendition): ChapterContents | null {
+  const current = rendition.getContents() as unknown as ChapterContents | ChapterContents[] | undefined;
+  if (Array.isArray(current)) return current[0] ?? null;
+  return current ?? null;
+}
+
+
+/** A CFI that no longer resolves gives null or a throw — both mean the passage moved. */
+function safeRange(contents: ChapterContents, cfi: string): Range | null {
+  try {
+    return contents.range(cfi);
+  } catch {
+    return null;
+  }
+}
 
 /** Colours come from the app's tokens so chapters follow light and dark themes. */
 function themeBook(rendition: Rendition) {
@@ -39,10 +79,36 @@ function themeBook(rendition: Rendition) {
 }
 
 /**
- * Renders an EPUB with epub.js in paginated mode. Chapters load into iframes
- * sandboxed without allow-scripts, so scripts inside the book never run.
+ * Renders an EPUB with epub.js. Chapters load into iframes sandboxed without
+ * allow-scripts, so scripts inside the book never run. Highlights are the one
+ * thing the reader draws itself: epub.js keeps each one as a CFI and paints it
+ * as an SVG shape over the chapter, in this document rather than the frame.
  */
-export function EpubReader({ document, progressLineRef }: { document: ReaderDocument; progressLineRef: RefObject<HTMLDivElement | null> }) {
+export function EpubReader({
+  document,
+  highlights,
+  prompts,
+  focusHighlightId,
+  progressLineRef,
+  panelOpen,
+  annotationsOpen,
+  onAnnotationsOpenChange,
+  assist,
+  assistConfigured,
+  onAddTag,
+}: {
+  document: ReaderDocument;
+  highlights: HighlightItem[];
+  prompts: AssistPromptItem[];
+  focusHighlightId?: string;
+  progressLineRef: RefObject<HTMLDivElement | null>;
+  panelOpen: boolean;
+  annotationsOpen: boolean;
+  onAnnotationsOpenChange: (open: boolean) => void;
+  assist: DocumentAssist;
+  assistConfigured: boolean;
+  onAddTag: () => void;
+}) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const bookRef = useRef<Book | null>(null);
@@ -54,13 +120,128 @@ export function EpubReader({ document, progressLineRef }: { document: ReaderDocu
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
   const [chaptersOpen, setChaptersOpen] = useState(false);
+  const [mode, setMode] = usePageMode();
+  const { optimistic, create, update, remove, copy, editing, setEditing } = useHighlightMutations(document.id, highlights);
+  const [selection, setSelection] = useState<
+    | { cfi: string; quote: string; prefix: string; suffix: string; context: string; start: number; end: number; rect: SelectionRect }
+    | null
+  >(null);
+  const [orphanIds, setOrphanIds] = useState<Set<string>>(new Set());
   const save = usePositionSaver(document.id);
+  const cfiRef = useRef<string | undefined>(document.location?.kind === "epub" ? document.location.cfi : undefined);
+  /** highlight id → the mark currently drawn for it, so re-renders don't stack. */
+  const drawnRef = useRef(new Map<string, { cfi: string; color: HighlightColor; hasNote: boolean }>());
+  const highlightsRef = useRef(optimistic);
+  const contentsRef = useRef<ChapterContents | null>(null);
 
   const prev = useCallback(() => void renditionRef.current?.prev(), []);
   const next = useCallback(() => void renditionRef.current?.next(), []);
+  const changeMode = (nextMode: typeof mode) => {
+    if (nextMode === mode) return;
+    setReady(false);
+    drawnRef.current.clear();
+    setMode(nextMode);
+  };
+
+  useEffect(() => {
+    highlightsRef.current = optimistic;
+  }, [optimistic]);
+
+  const selectionRef = useRef(selection);
+  useEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
+
+  /**
+   * Save the passage the reader last saw selected. The book's handlers are bound
+   * once, so this reads the selection through a ref rather than the render it
+   * was written in.
+   */
+  const highlightSelection = useCallback(
+    (color: HighlightColor, withNote: boolean, promptId?: string) => {
+      const selected = selectionRef.current;
+      if (!selected) return;
+      void create(
+        {
+          quote: selected.quote,
+          prefix: selected.prefix,
+          suffix: selected.suffix,
+          context: selected.context,
+          startOffset: selected.start,
+          endOffset: selected.end,
+          cfi: selected.cfi,
+        },
+        color,
+        withNote,
+        promptId,
+      );
+      contentsRef.current?.window.getSelection()?.removeAllRanges();
+      setSelection(null);
+    },
+    [create],
+  );
+
+  /** Draw every stored highlight the book knows about, and drop the stale ones. */
+  const syncMarks = useCallback(() => {
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    const wanted = highlightsRef.current.filter((item) => item.cfi);
+    const byId = new Map(wanted.map((item) => [item.id, item]));
+
+    for (const [id, mark] of Array.from(drawnRef.current)) {
+      const item = byId.get(id);
+      if (item && item.cfi === mark.cfi && item.color === mark.color && Boolean(item.note) === mark.hasNote) continue;
+      try {
+        rendition.annotations.remove(mark.cfi, "highlight");
+      } catch {
+        /* already gone with the chapter it lived in */
+      }
+      drawnRef.current.delete(id);
+    }
+
+    const contents = contentsOf(rendition);
+    const chapter = cfiRef.current ? sectionOf(cfiRef.current) : -1;
+    const missed: string[] = [];
+    for (const item of wanted) {
+      if (drawnRef.current.has(item.id)) continue;
+      const cfi = item.cfi as string;
+      // A passage in the open chapter can be checked now; one further along is
+      // left to epub.js, which draws it when the reader gets there.
+      if (contents && chapter >= 0 && sectionOf(cfi) === chapter) {
+        const range = safeRange(contents, cfi);
+        if (!range || range.toString().trim() === "") {
+          missed.push(item.id);
+          continue;
+        }
+      }
+      try {
+        rendition.annotations.highlight(
+          cfi,
+          { hlId: item.id, color: item.color, hasNote: item.note ? "true" : "false" },
+          undefined,
+          MARK_CLASS,
+        );
+        drawnRef.current.set(item.id, { cfi, color: item.color, hasNote: Boolean(item.note) });
+      } catch {
+        missed.push(item.id);
+      }
+    }
+    setOrphanIds((current) => {
+      const nextIds = new Set<string>();
+      // Orphans found in a chapter that has since closed stay listed; a passage
+      // that resolves again drops out.
+      for (const id of current) {
+        const item = byId.get(id);
+        if (item?.cfi && sectionOf(item.cfi) !== chapter) nextIds.add(id);
+      }
+      for (const id of missed) nextIds.add(id);
+      return nextIds;
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    const drawn = drawnRef.current;
     (async () => {
       try {
         const response = await fetch(`/api/files/${document.id}`);
@@ -68,12 +249,14 @@ export function EpubReader({ document, progressLineRef }: { document: ReaderDocu
         const data = await response.arrayBuffer();
         const { default: ePub } = await import("epubjs");
         if (cancelled || !viewerRef.current) return;
+        viewerRef.current.replaceChildren();
         const book = ePub(data);
         bookRef.current = book;
         const rendition = book.renderTo(viewerRef.current, {
           width: "100%",
           height: "100%",
-          flow: "paginated",
+          flow: mode === "scroll" ? "scrolled" : "paginated",
+          manager: mode === "scroll" ? "continuous" : "default",
           spread: "none",
           allowScriptedContent: false,
         });
@@ -84,6 +267,7 @@ export function EpubReader({ document, progressLineRef }: { document: ReaderDocu
         if (!cancelled) setToc(flatten(navigation.toc));
 
         rendition.on("relocated", (location: Location) => {
+          cfiRef.current = location.start.cfi;
           setHref(location.start.href);
           setAtStart(location.atStart);
           setAtEnd(location.atEnd);
@@ -94,13 +278,65 @@ export function EpubReader({ document, progressLineRef }: { document: ReaderDocu
           setPercentage(progress);
           if (progressLineRef.current) progressLineRef.current.style.width = `${Math.round(progress * 1000) / 10}%`;
           save({ progress, location: { kind: "epub", cfi: location.start.cfi } });
+          syncMarks();
         });
+        rendition.on("rendered", () => syncMarks());
         rendition.on("keyup", (event: KeyboardEvent) => {
+          if (event.metaKey || event.ctrlKey || event.altKey) return;
           if (event.key === "ArrowRight") void rendition.next();
           if (event.key === "ArrowLeft") void rendition.prev();
+          if (event.key === "Escape") setSelection(null);
+          if (event.key.toLowerCase() === "h") highlightSelection("YELLOW", false);
+          if (event.key.toLowerCase() === "n") highlightSelection("YELLOW", true);
+        });
+        // A click in the chapter collapses the selection, so drop the toolbar too.
+        rendition.on("click", (_event: Event, contents: unknown) => {
+          const chapter = (contents as ChapterContents | undefined) ?? contentsRef.current;
+          const selected = chapter?.window.getSelection();
+          if (!selected || selected.rangeCount === 0 || selected.isCollapsed) setSelection(null);
+        });
+        // A mark is the only clickable thing the reader draws, so it opens that note.
+        rendition.on("markClicked", (cfiRange: string, data: { hlId?: string }) => {
+          const item = highlightsRef.current.find((highlight) => highlight.id === data?.hlId || highlight.cfi === cfiRange);
+          if (item) setEditing(toDraft(item));
+        });
+        // epub.js watches the chapter's own selection and reports it as a CFI.
+        rendition.on("selected", (cfiRange: string, contents: unknown) => {
+          const chapter = contents as ChapterContents;
+          if (!cfiRange || !chapter?.document) return;
+          contentsRef.current = chapter;
+          const range = safeRange(chapter, cfiRange) ?? chapter.window.getSelection()?.getRangeAt(0) ?? null;
+          const offsets = range ? rangeToOffsets(chapter.document.body, range) : null;
+          if (!range || !offsets) {
+            setSelection(null);
+            return;
+          }
+          const text = chapter.document.body.textContent ?? "";
+          const selector = describeTextRange(text, offsets.start, offsets.end);
+          if (selector.exact.length < 2) {
+            setSelection(null);
+            return;
+          }
+          const box = range.getBoundingClientRect();
+          const frame = chapter.window.frameElement?.getBoundingClientRect();
+          setSelection({
+            cfi: cfiRange,
+            quote: selector.exact.replace(/\s+/g, " ").trim(),
+            prefix: selector.prefix,
+            suffix: selector.suffix,
+            context: surroundingSentence(text, selector.start, selector.end),
+            start: selector.start,
+            end: selector.end,
+            rect: {
+              top: (frame?.top ?? 0) + box.top,
+              bottom: (frame?.bottom ?? 0) + box.bottom,
+              left: (frame?.left ?? 0) + box.left,
+              width: box.width,
+            },
+          });
         });
 
-        const saved = document.location?.kind === "epub" ? document.location.cfi : undefined;
+        const saved = cfiRef.current;
         try {
           await rendition.display(saved);
         } catch {
@@ -119,10 +355,17 @@ export function EpubReader({ document, progressLineRef }: { document: ReaderDocu
       bookRef.current?.destroy();
       renditionRef.current = null;
       bookRef.current = null;
+      drawn.clear();
+      contentsRef.current = null;
     };
-    // The reader is keyed to one document; later prop refreshes must not reopen the book.
+    // Reopen only when the book or the page movement changes. The saved place lives in cfiRef.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [document.id]);
+  }, [document.id, mode]);
+
+  // The list changes without a page turn, so repaint when it does.
+  useEffect(() => {
+    if (ready) syncMarks();
+  }, [optimistic, ready, syncMarks]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -136,6 +379,39 @@ export function EpubReader({ document, progressLineRef }: { document: ReaderDocu
     observer.observe(window.document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     return () => observer.disconnect();
   }, []);
+
+  /** Go to a highlight and flash its mark once the chapter has drawn it. */
+  const jumpTo = useCallback(
+    (id: string) => {
+      const item = highlightsRef.current.find((highlight) => highlight.id === id);
+      if (!item?.cfi) return;
+      onAnnotationsOpenChange(false);
+      void renditionRef.current?.display(item.cfi);
+      let attempts = 0;
+      const seek = () => {
+        const mark = window.document.querySelector<SVGGElement>(`g.${MARK_CLASS}[data-hl-id="${CSS.escape(id)}"]`);
+        if (mark) {
+          const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          mark.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+          mark.classList.remove("hl-flash");
+          void mark.getBoundingClientRect();
+          mark.classList.add("hl-flash");
+          return;
+        }
+        if (++attempts < 90) requestAnimationFrame(seek);
+      };
+      requestAnimationFrame(seek);
+    },
+    [onAnnotationsOpenChange],
+  );
+
+  // Arriving from the Highlights page: land on the passage, not the last place saved.
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!focusHighlightId || !ready || focused.current) return;
+    focused.current = true;
+    jumpTo(focusHighlightId);
+  }, [focusHighlightId, jumpTo, ready]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -154,6 +430,15 @@ export function EpubReader({ document, progressLineRef }: { document: ReaderDocu
   }, [next, prev]);
 
   const current = href ? toc.find((item) => stripFragment(item.href).endsWith(stripFragment(href)) || stripFragment(href).endsWith(stripFragment(item.href))) : undefined;
+
+  // Book order: chapter first, then position within the chapter.
+  const sorted = useMemo(
+    () =>
+      [...optimistic].sort(
+        (a, b) => sectionOf(a.cfi ?? "") - sectionOf(b.cfi ?? "") || a.startOffset - b.startOffset,
+      ),
+    [optimistic],
+  );
 
   const chapterList = (
     <ol className="grid">
@@ -198,8 +483,24 @@ export function EpubReader({ document, progressLineRef }: { document: ReaderDocu
     );
   }
 
+  const panel = (
+    <AnnotationsPanelBody
+      document={document}
+      highlights={sorted}
+      orphanIds={orphanIds}
+      onJump={jumpTo}
+      onEdit={(id) => {
+        const item = optimistic.find((highlight) => highlight.id === id);
+        if (item) setEditing(toDraft(item));
+      }}
+      onAddTag={onAddTag}
+      assist={assist}
+      assistConfigured={assistConfigured}
+    />
+  );
+
   return (
-    <div className="grid xl:grid-cols-[var(--toc-width)_minmax(0,1fr)]">
+    <div className={cn("grid xl:grid-cols-[var(--toc-width)_minmax(0,1fr)]", panelOpen && "xl:grid-cols-[var(--toc-width)_minmax(0,1fr)_var(--panel-width)]")}>
       <nav aria-label="Chapters" className="sticky top-14 hidden max-h-[calc(100dvh-56px)] self-start overflow-y-auto px-6 pt-[30px] pb-16 xl:block">
         <h2 className="caps mb-3.5">Chapters</h2>
         {toc.length ? chapterList : <p className="text-[13px] text-muted-foreground">This book has no table of contents.</p>}
@@ -215,12 +516,20 @@ export function EpubReader({ document, progressLineRef }: { document: ReaderDocu
             <h1 className="truncate font-serif text-[15px] leading-snug font-semibold tracking-[-0.01em]">{document.title}</h1>
             <p className="truncate text-[12px] text-muted-foreground">{current?.label.trim() ?? (ready ? (document.author ?? "") : "Opening…")}</p>
           </div>
+          <span className="shrink-0">
+            <PageModeToggle mode={mode} onChange={changeMode} />
+          </span>
           <span className="font-mono text-[11.5px] text-muted-foreground tabular-nums">
             {percentage !== null ? `${Math.round(percentage * 100)}%` : ""}
           </span>
         </div>
 
-        <div className="relative mx-auto h-[calc(100dvh-56px-60px-64px)] min-h-[360px] w-full max-w-[760px] px-2 sm:px-6">
+        <div
+          className={cn(
+            "relative mx-auto h-[calc(100dvh-56px-60px-64px)] min-h-[360px] w-full max-w-[760px] px-2 sm:px-6",
+            mode === "scroll" && "overflow-y-auto",
+          )}
+        >
           <div ref={viewerRef} className="h-full w-full" aria-label={`${document.title}, book text`} />
           {!ready && (
             <div className="absolute inset-0 grid place-items-center text-[13px] text-muted-foreground" role="status">
@@ -243,9 +552,37 @@ export function EpubReader({ document, progressLineRef }: { document: ReaderDocu
           </Button>
         </div>
         <p className="mx-auto mb-10 max-w-[62ch] px-6 text-center text-[12.5px] leading-relaxed text-muted-foreground">
-          Highlighting isn&apos;t available in EPUBs yet. Scripts inside the book never run. Use ← and → to turn pages.
+          {mode === "scroll"
+            ? "Scroll to move through the book. Select any passage to highlight it; scripts inside the book never run."
+            : "Select any passage to highlight it. Scripts inside the book never run. Use ← and → to turn pages."}
         </p>
       </div>
+
+      {panelOpen && <AnnotationsAside body={panel} />}
+
+      <AnnotationsSheet open={annotationsOpen} onOpenChange={onAnnotationsOpenChange} count={optimistic.length} body={panel} />
+
+      {selection && !editing && (
+        <SelectionToolbar
+          rect={selection.rect}
+          prompts={prompts}
+          onHighlight={(color) => highlightSelection(color, false)}
+          onNote={() => highlightSelection("YELLOW", true)}
+          onPrompt={(promptId) => highlightSelection("YELLOW", false, promptId)}
+          onCopy={() => {
+            void copy(selection.quote);
+            contentsRef.current?.window.getSelection()?.removeAllRanges();
+            setSelection(null);
+          }}
+        />
+      )}
+      <NoteDialog
+        highlight={editing}
+        prompts={prompts}
+        onOpenChange={(open) => !open && setEditing(null)}
+        onSave={(id, patch) => update(id, patch)}
+        onDelete={remove}
+      />
 
       <Sheet open={chaptersOpen} onOpenChange={setChaptersOpen}>
         <SheetContent side="bottom" aria-describedby={undefined}>

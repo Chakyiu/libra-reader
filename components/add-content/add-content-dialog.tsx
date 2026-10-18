@@ -467,8 +467,9 @@ export function AddContentDialog({
                 </div>
               )}
               <p className="mt-4 text-[12.5px] leading-relaxed text-muted-foreground">
-                PDFs open page by page with zoom; EPUBs open by chapter. Embedded scripts, forms and links inside files stay
-                inactive, and highlighting is available for articles and notes only.
+                PDFs and EPUBs can flip one page at a time or scroll to the next. Select text in a PDF page or an EPUB
+                chapter to highlight it, and your notes appear in the annotations panel beside the reader. Embedded
+                scripts, forms and links inside files stay inactive.
               </p>
               <CollectionAndTags
                 collections={collections}

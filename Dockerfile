@@ -6,6 +6,11 @@
 FROM node:22-bookworm-slim AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+# npm gives up on a single reset. Retry instead, and keep the download cache in
+# a BuildKit cache mount (see the stages below) so a retry reuses what landed.
+ENV npm_config_fetch_retries=5 \
+    npm_config_fetch_retry_mintimeout=10000 \
+    npm_config_fetch_retry_maxtimeout=120000
 
 # --- full install, used only to build ---
 FROM base AS deps
@@ -13,10 +18,13 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-COPY prisma ./prisma
+# The project's postinstall runs `prisma generate`, so this stage needs the
+# schema. Only the schema: copying all of prisma/ would tie the install below to
+# every new migration and seed edit, and make each one re-download the tree.
+COPY prisma/schema.prisma ./prisma/schema.prisma
 COPY prisma.config.ts ./
 COPY scripts/copy-pdf-worker.mjs ./scripts/copy-pdf-worker.mjs
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
@@ -25,10 +33,9 @@ COPY . .
 # recreate them here from the dependencies copied above.
 ENV DATABASE_URL=file:/tmp/libra-build.db
 ENV LIBRA_STORAGE_DIR=/tmp/uploads
-RUN npx prisma generate \
+RUN --mount=type=cache,target=/app/.next/cache npx prisma generate \
   && node scripts/copy-pdf-worker.mjs \
-  && npm run build \
-  && rm -rf .next/cache
+  && npm run build
 
 # Production dependencies, with better-sqlite3 compiled for this image.
 FROM base AS prod-deps
@@ -38,7 +45,7 @@ RUN apt-get update \
 COPY package.json package-lock.json ./
 # The project postinstall needs the Prisma CLI, which is a dev dependency.
 # Compile the native addon explicitly instead.
-RUN npm ci --omit=dev --ignore-scripts \
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts \
   && npm rebuild better-sqlite3 \
   && node -e "require('better-sqlite3')"
 
@@ -49,7 +56,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates openssl \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/prisma-cli
-RUN npm init -y \
+RUN --mount=type=cache,target=/root/.npm npm init -y \
   && npm install --no-package-lock --no-save prisma@7.10.1 tsx@4.23.15
 
 # --- runtime ---

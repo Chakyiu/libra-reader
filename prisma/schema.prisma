@@ -41,6 +41,7 @@ enum AssistKind {
   OUTLINE
   QUESTION
   EXPLAIN
+  PROMPT
 }
 
 enum CollectionColor {
@@ -113,9 +114,13 @@ model Highlight {
   suffix      String         @default("")
   /// The sentence or paragraph around the quote, for display away from the reader.
   context     String         @default("")
-  /// Character offsets into the rendered document text.
+  /// Character offsets into the rendered document text, or into that PDF page's text.
   startOffset Int
   endOffset   Int
+  /// 1-based page for a PDF highlight. Empty for articles and notes.
+  page        Int?
+  /// epubcfi range for an EPUB highlight — the anchor there, since a chapter has no page.
+  cfi         String?
   color       HighlightColor @default(YELLOW)
   note        String?
   createdAt   DateTime       @default(now())
@@ -193,7 +198,17 @@ model AssistConfig {
   updatedAt DateTime @updatedAt
 }
 
-/// A generated answer. Summary and outline are one per document; an explanation is one per highlight; questions keep a short recent list.
+/// Instructions for a highlight. {{content}}, {{title}}, and {{author}} are filled in when it runs.
+model AssistPrompt {
+  id        String   @id @default(cuid())
+  name      String
+  body      String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A generated answer. Summary and outline are one per document; an explanation or a prompt note is one per highlight; questions keep a short recent list.
 model AssistNote {
   id          String     @id @default(cuid())
   documentId  String

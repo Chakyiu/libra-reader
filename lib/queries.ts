@@ -9,7 +9,9 @@ import {
   DEFAULT_ASSIST_BASE_URL,
   DEFAULT_ASSIST_MODEL,
   DEFAULT_PREFERENCES,
+  isAssistAnswerKind,
   type AssistAnswer,
+  type AssistPromptItem,
   type AssistStatus,
   type CollectionSummary,
   type DocumentAssist,
@@ -80,6 +82,8 @@ const highlightSelect = {
   context: true,
   startOffset: true,
   endOffset: true,
+  page: true,
+  cfi: true,
   color: true,
   note: true,
   createdAt: true,
@@ -150,12 +154,13 @@ export async function getAssistStatus(): Promise<AssistStatus> {
 
 function toAssistAnswer(note: {
   id: string;
-  kind: AssistAnswer["kind"];
+  kind: string;
   question: string | null;
   answer: string;
   model: string;
   updatedAt: Date;
 }): AssistAnswer {
+  if (!isAssistAnswerKind(note.kind)) throw new Error("A prompt note is stored on the highlight, not as an Assist answer.");
   return {
     id: note.id,
     kind: note.kind,
@@ -171,9 +176,13 @@ export async function getDocumentAssist(documentId: string): Promise<DocumentAss
   const summary = notes.find((note) => note.kind === "SUMMARY") ?? null;
   const outline = notes.find((note) => note.kind === "OUTLINE") ?? null;
   const explanations: Record<string, AssistAnswer> = {};
+  const promptNotes: Record<string, { answer: string; model: string }> = {};
   for (const note of notes) {
     if (note.kind === "EXPLAIN" && note.highlightId && !explanations[note.highlightId]) {
       explanations[note.highlightId] = toAssistAnswer(note);
+    }
+    if (note.kind === "PROMPT" && note.highlightId && !promptNotes[note.highlightId]) {
+      promptNotes[note.highlightId] = { answer: note.answer, model: note.model };
     }
   }
   return {
@@ -181,7 +190,13 @@ export async function getDocumentAssist(documentId: string): Promise<DocumentAss
     outline: outline ? toAssistAnswer(outline) : null,
     questions: notes.filter((note) => note.kind === "QUESTION").slice(0, 8).map(toAssistAnswer),
     explanations,
+    promptNotes,
   };
+}
+
+export async function listAssistPrompts(): Promise<AssistPromptItem[]> {
+  const rows = await db.assistPrompt.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
+  return rows.map((row) => ({ id: row.id, name: row.name, body: row.body }));
 }
 
 /* ---------------------------------------------------------------- library */
@@ -428,25 +443,30 @@ export async function listHighlights(filters: HighlightFilters): Promise<Highlig
     }),
   ]);
 
-  const explanations = rows.length
+  const generated = rows.length
     ? await db.assistNote.findMany({
-        where: { kind: "EXPLAIN", highlightId: { in: rows.map((row) => row.id) } },
+        where: { kind: { in: ["EXPLAIN", "PROMPT"] }, highlightId: { in: rows.map((row) => row.id) } },
         orderBy: { updatedAt: "desc" },
-        select: { highlightId: true, answer: true, model: true },
+        select: { highlightId: true, kind: true, answer: true, model: true },
       })
     : [];
   const explanationByHighlight = new Map<string, { answer: string; model: string }>();
-  for (const note of explanations) {
-    if (note.highlightId && !explanationByHighlight.has(note.highlightId)) {
-      explanationByHighlight.set(note.highlightId, { answer: note.answer, model: note.model });
-    }
+  const promptByHighlight = new Map<string, { answer: string; model: string }>();
+  for (const note of generated) {
+    if (!note.highlightId) continue;
+    const target = note.kind === "EXPLAIN" ? explanationByHighlight : promptByHighlight;
+    if (!target.has(note.highlightId)) target.set(note.highlightId, { answer: note.answer, model: note.model });
   }
 
   return {
-    highlights: rows.map((row) => ({
-      ...toHighlightWithSource(row),
-      explanation: explanationByHighlight.get(row.id) ?? null,
-    })),
+    highlights: rows.map((row) => {
+      const prompt = promptByHighlight.get(row.id);
+      return {
+        ...toHighlightWithSource(row),
+        explanation: explanationByHighlight.get(row.id) ?? null,
+        generatedModel: prompt && prompt.answer === row.note ? prompt.model : null,
+      };
+    }),
     total,
     sources,
     tags: tagRows.map((t) => t.name),

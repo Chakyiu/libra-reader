@@ -2,13 +2,17 @@
 
 import { useId, useState } from "react";
 import { LoaderCircle, Trash } from "lucide-react";
+import { toast } from "sonner";
 import { ColorChips } from "@/components/highlights/color-chips";
+import { AssistPromptMenu } from "@/components/reader/assist-prompt-menu";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { applyAssistPrompt } from "@/lib/actions/assist";
 import { highlightVar } from "@/lib/colors";
 import type { HighlightColor } from "@/lib/generated/prisma/enums";
+import type { AssistPromptItem } from "@/lib/types";
 import { MAX_HIGHLIGHT_NOTE_LENGTH } from "@/lib/validation";
 
 export interface NoteDraft {
@@ -21,11 +25,13 @@ export interface NoteDraft {
 /** Edit a highlight's note and colour; also the place to delete it. */
 export function NoteDialog({
   highlight,
+  prompts = [],
   onOpenChange,
   onSave,
   onDelete,
 }: {
   highlight: NoteDraft | null;
+  prompts?: AssistPromptItem[];
   onOpenChange: (open: boolean) => void;
   onSave: (id: string, patch: { note: string; color: HighlightColor }) => Promise<boolean>;
   onDelete: (id: string) => void;
@@ -33,7 +39,14 @@ export function NoteDialog({
   return (
     <Dialog open={highlight !== null} onOpenChange={onOpenChange}>
       {highlight && (
-        <NoteDialogBody key={highlight.id} highlight={highlight} onOpenChange={onOpenChange} onSave={onSave} onDelete={onDelete} />
+        <NoteDialogBody
+          key={highlight.id}
+          highlight={highlight}
+          prompts={prompts}
+          onOpenChange={onOpenChange}
+          onSave={onSave}
+          onDelete={onDelete}
+        />
       )}
     </Dialog>
   );
@@ -41,11 +54,13 @@ export function NoteDialog({
 
 function NoteDialogBody({
   highlight,
+  prompts,
   onOpenChange,
   onSave,
   onDelete,
 }: {
   highlight: NoteDraft;
+  prompts: AssistPromptItem[];
   onOpenChange: (open: boolean) => void;
   onSave: (id: string, patch: { note: string; color: HighlightColor }) => Promise<boolean>;
   onDelete: (id: string) => void;
@@ -54,6 +69,18 @@ function NoteDialogBody({
   const [note, setNote] = useState(highlight.note ?? "");
   const [color, setColor] = useState<HighlightColor>(highlight.color);
   const [saving, setSaving] = useState(false);
+  const [writing, setWriting] = useState(false);
+
+  const writeFromPrompt = async (promptId: string) => {
+    setWriting(true);
+    const result = await applyAssistPrompt({ highlightId: highlight.id, promptId });
+    setWriting(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setNote(result.data.note);
+  };
 
   const save = async () => {
     setSaving(true);
@@ -81,10 +108,22 @@ function NoteDialogBody({
             void save();
           }}
         >
-          <Label htmlFor={fieldId}>Your note</Label>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <Label htmlFor={fieldId} className="mb-0">
+              Your note
+            </Label>
+            <AssistPromptMenu
+              variant="field"
+              align="end"
+              prompts={prompts}
+              disabled={writing || saving}
+              onSelect={(promptId) => void writeFromPrompt(promptId)}
+            />
+          </div>
           <Textarea
             id={fieldId}
             value={note}
+            disabled={writing}
             onChange={(event) => setNote(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {

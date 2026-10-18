@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 /** Everything the user has made, as one portable JSON file. Original PDF/EPUB bytes stay in storage. */
 export async function GET(): Promise<Response> {
-  const [documents, collections, tags, highlights, preferences, assist] = await Promise.all([
+  const [documents, collections, tags, highlights, preferences, assist, prompts] = await Promise.all([
     db.document.findMany({
       orderBy: { createdAt: "asc" },
       include: {
@@ -19,6 +19,7 @@ export async function GET(): Promise<Response> {
     db.highlight.findMany({ orderBy: [{ documentId: "asc" }, { startOffset: "asc" }] }),
     getPreferences(),
     db.assistNote.findMany({ orderBy: [{ documentId: "asc" }, { createdAt: "asc" }] }),
+    db.assistPrompt.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }] }),
   ]);
 
   const payload = {
@@ -73,6 +74,7 @@ export async function GET(): Promise<Response> {
       context: h.context,
       startOffset: h.startOffset,
       endOffset: h.endOffset,
+      page: h.page,
       color: h.color,
       note: h.note,
       createdAt: h.createdAt,
@@ -88,6 +90,12 @@ export async function GET(): Promise<Response> {
       model: note.model,
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
+    })),
+    prompts: prompts.map((prompt) => ({
+      id: prompt.id,
+      name: prompt.name,
+      body: prompt.body,
+      position: prompt.position,
     })),
   };
 

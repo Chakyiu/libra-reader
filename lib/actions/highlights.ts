@@ -15,6 +15,8 @@ const select = {
   context: true,
   startOffset: true,
   endOffset: true,
+  page: true,
+  cfi: true,
   color: true,
   note: true,
   createdAt: true,
@@ -30,11 +32,19 @@ export async function createHighlight(raw: z.input<typeof highlightCreateSchema>
   if (!input.success) return { ok: false, error: firstError(input.error) };
   const doc = await db.document.findUnique({ where: { id: input.data.documentId }, select: { type: true, contentHtml: true } });
   if (!doc) return { ok: false, error: "That document no longer exists." };
-  if (!doc.contentHtml || doc.type === "PDF" || doc.type === "EPUB") {
-    return { ok: false, error: "Highlights are only available in articles and notes." };
+  if (doc.type === "EPUB") {
+    // An EPUB chapter has no page and no stable character stream, so its anchor is a CFI.
+    if (!input.data.cfi) return { ok: false, error: "That passage needs a book location." };
+  } else if (doc.type === "PDF") {
+    if (!input.data.page) return { ok: false, error: "That passage needs a page." };
+  } else if (!doc.contentHtml) {
+    return { ok: false, error: "Highlights are only available in articles, notes, and PDFs." };
   }
-  const { note, ...rest } = input.data;
-  const highlight = await db.highlight.create({ data: { ...rest, note: note ? note : null }, select });
+  const { note, page, cfi, ...rest } = input.data;
+  const highlight = await db.highlight.create({
+    data: { ...rest, page: page ?? null, cfi: doc.type === "EPUB" ? (cfi ?? null) : null, note: note ? note : null },
+    select,
+  });
   refresh();
   return { ok: true, data: highlight };
 }

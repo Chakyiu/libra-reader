@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { selectArticleText } from "./helpers";
+import { selectArticleText, selectBookText } from "./helpers";
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
@@ -35,6 +35,21 @@ test("reads on a phone: bottom navigation, reading sheet, annotations, no sidewa
 
   await selectArticleText(page, "Comfort does not have a funding stream.");
   await expect(page.getByRole("toolbar", { name: "Selection actions" })).toBeVisible();
+});
+
+test("the annotations sheet and highlighting work in the phone book reader", async ({ page }) => {
+  await page.goto("/library");
+  await page.getByRole("link", { name: "The Long Now of Software Maintenance", exact: true }).click();
+  await expect(page.locator("[aria-label$='book text'] iframe").first()).toBeVisible();
+
+  await selectBookText(page, "a certificate that renews itself at three in the morning");
+  await expect(page.getByRole("toolbar", { name: "Selection actions" })).toBeVisible();
+  await page.getByRole("button", { name: "Highlight in Sage" }).click();
+  await expect(page.locator("g.libra-hl[data-color='SAGE']")).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Annotations" }).click();
+  const sheet = page.getByRole("dialog", { name: "Annotations" });
+  await expect(sheet).toContainText("a certificate that renews itself at three in the morning");
 });
 
 test("adds content from the phone's centre button as a bottom sheet", async ({ page }) => {

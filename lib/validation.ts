@@ -118,6 +118,8 @@ export const highlightCreateSchema = z
     context: z.string().max(1200).default(""),
     startOffset: z.int().min(0),
     endOffset: z.int().min(1),
+    page: z.int().min(1).max(100_000).optional(),
+    cfi: z.string().trim().min(1).max(2000, "That book location is too long.").optional(),
     color: highlightColorSchema.default("YELLOW"),
     note: z.string().trim().max(MAX_HIGHLIGHT_NOTE_LENGTH).optional(),
   })
@@ -235,6 +237,17 @@ export function fieldErrors(error: z.ZodError): Record<string, string[]> {
 export function firstError(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Something in that request wasn't valid.";
 }
+
+export const assistPromptSaveSchema = z.object({
+  id: idSchema.optional(),
+  name: z.string().trim().min(1, "Name the prompt.").max(60, "Keep the name under 60 characters."),
+  body: z.string().trim().min(1, "Write the prompt.").max(2_000, "Keep the prompt under 2,000 characters."),
+});
+
+export const assistPromptRunSchema = z.object({
+  highlightId: idSchema,
+  promptId: idSchema,
+});
 
 export const assistConfigSchema = z.object({
   baseUrl: z.string().trim().min(1, "Add the model host address.").max(300, "That address is too long."),

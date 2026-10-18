@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ReaderView } from "@/components/reader/reader-view";
-import { getAssistStatus, getDocumentAssist, getPreferences, getReaderData, listCollectionRefs, listTagNames } from "@/lib/queries";
+import { getAssistStatus, getDocumentAssist, getPreferences, getReaderData, listAssistPrompts, listCollectionRefs, listTagNames } from "@/lib/queries";
 import { idSchema } from "@/lib/validation";
 
 type Props = {
@@ -19,13 +19,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ReadPage({ params, searchParams }: Props) {
   const id = idSchema.safeParse((await params).id);
   if (!id.success) notFound();
-  const [data, collections, tags, preferences, assist, assistStatus, query] = await Promise.all([
+  const [data, collections, tags, preferences, assist, assistStatus, prompts, query] = await Promise.all([
     getReaderData(id.data),
     listCollectionRefs(),
     listTagNames(),
     getPreferences(),
     getDocumentAssist(id.data),
     getAssistStatus(),
+    listAssistPrompts(),
     searchParams,
   ]);
   if (!data) notFound();
@@ -40,6 +41,7 @@ export default async function ReadPage({ params, searchParams }: Props) {
       preferences={preferences}
       assist={assist}
       assistConfigured={assistStatus.configured}
+      prompts={prompts}
       focusHighlightId={hl}
     />
   );

@@ -2,8 +2,10 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { Copy, Highlighter, NotebookPen } from "lucide-react";
+import { AssistPromptMenu } from "@/components/reader/assist-prompt-menu";
 import { HIGHLIGHT_COLORS } from "@/lib/colors";
 import type { HighlightColor } from "@/lib/generated/prisma/enums";
+import type { AssistPromptItem } from "@/lib/types";
 
 export interface SelectionRect {
   top: number;
@@ -18,13 +20,17 @@ export interface SelectionRect {
  */
 export function SelectionToolbar({
   rect,
+  prompts,
   onHighlight,
   onNote,
+  onPrompt,
   onCopy,
 }: {
   rect: SelectionRect;
+  prompts: AssistPromptItem[];
   onHighlight: (color: HighlightColor) => void;
   onNote: () => void;
+  onPrompt: (promptId: string) => void;
   onCopy: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -83,6 +89,7 @@ export function SelectionToolbar({
         <NotebookPen className="size-[15px]" aria-hidden />
         Add note
       </button>
+      <AssistPromptMenu variant="toolbar" prompts={prompts} onSelect={onPrompt} />
       <button
         type="button"
         onClick={onCopy}

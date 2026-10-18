@@ -92,6 +92,11 @@ describe("highlightCreateSchema", () => {
   it("rejects ids that could smuggle syntax", () => {
     expect(highlightCreateSchema.safeParse({ ...base, documentId: "../etc" }).success).toBe(false);
   });
+
+  it("accepts a PDF page and rejects page 0", () => {
+    expect(highlightCreateSchema.safeParse({ ...base, page: 2 }).success).toBe(true);
+    expect(highlightCreateSchema.safeParse({ ...base, page: 0 }).success).toBe(false);
+  });
 });
 
 describe("preferences and positions", () => {
